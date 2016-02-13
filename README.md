@@ -80,7 +80,7 @@ You can modify error handling using he `on_error($mode)` method.
 The following error mode flag constants are defined:
 
 - `ERR_TEXT` Error message is output as plain text (default)
-- `ERR_HTML` Error message is output as HTML (in a <p> element)
+- `ERR_HTML` Error message is output as HTML (in a `<p>` element)
 - `ERR_LOG` Error messages are sent to a logger callback
 - `ERR_EXIT` Error stops execution of the script
 
