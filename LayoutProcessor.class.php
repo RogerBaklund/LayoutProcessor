@@ -16,7 +16,6 @@ Version history:
 
 # TODO:
 - improve parameter error handling
-- !return [to <layout>] (maybe not?)
 - Error resume or similar
 - !continue <num>
   
@@ -36,6 +35,7 @@ abstract class LayoutProcessor {
   static $error_exit = false;
   static $break_counter = 0;
   static $continue_loop = false;
+  static $return = false;
   static $scope = array();
   static $prefix = array(
     '#' => 'comment',
@@ -186,6 +186,11 @@ abstract class LayoutProcessor {
       if(self::$error_exit) break;
       if(self::$continue_loop) break;
       if(self::$break_counter) break;
+      if(self::$return) {
+        if(self::$return != $scope['layout_name']) 
+          self::$return = false;
+        else break;
+      }
     }
     array_pop(self::$scope);
     return implode('',$output);
@@ -341,7 +346,7 @@ abstract class LayoutProcessor {
         self::$continue_loop = true;
         break;
       case 'return':
-        # TODO
+        self::$return = $scope['layout_name'];
         break;
       case 'scope':
         list($type,$vars) = self::split_on_optional_char($param);
@@ -467,16 +472,12 @@ abstract class LayoutProcessor {
           case 'raw': break; # no change
           case 'string': $param = self::eval_string($param,true); break;
           case 'expr': $param = self::eval_expr($param,true); break;
-          case 'expr-comma':  # !! not implemented
-            $param = self::eval_expr("array($param)",true);
-            break; 
           case 'unhtml': $param = htmlspecialchars($param); break;
           case 'urlify': $param = urlencode($param); break;
           case 'upper': $param = strtoupper($param); break;
           case 'lower': $param = strtolower($param); break;
           case 'ucfirst': $param = ucfirst($param); break;
           case 'ucwords': $param = ucwords($param); break;
-          # add more  !! make dynamic? implement trough domains?
         }
       } elseif(in_array($pt,array_keys(self::$custom_transform_types))) {
         $trans = self::$custom_transform_types[$pt];
