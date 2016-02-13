@@ -75,7 +75,7 @@ echo LayoutProcessor::run_layout('Hello','world');
 ## Error handling
 
 By default error messages are output where errors are encountered, but the script continues to run. 
-You can modify error handling using he `on_error($mode)` method. 
+You can modify error handling using the `on_error($mode)` method. 
 
 The following error mode flag constants are defined:
 
