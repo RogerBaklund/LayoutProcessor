@@ -17,8 +17,8 @@ Version history:
 # TODO:
 - improve parameter error handling
 - !return [to <layout>] (maybe not?)
-- ERR_RESUME
-- 
+- Error resume or similar
+- !continue <num>
   
  */
 abstract class LayoutProcessor {
@@ -120,7 +120,7 @@ abstract class LayoutProcessor {
   static function & parent_scope() {
     return self::$scope[count(self::$scope)-2];
   }
-  static function & find_scope($layout_name='',$cmd='') { # !! unused?
+  static function & find_scope($layout_name='',$cmd='') {
     $i = 1;
     while($i<count(self::$scope) && 
       (!$layout_name||self::$scope[count(self::$scope)-$i]['layout_name'] != $layout_name) &&
@@ -133,7 +133,7 @@ abstract class LayoutProcessor {
     $layout_script = self::get($layout_name);
     return $layout_script ? self::run_script($layout_script,$param,$layout_name) : false;
   }
-  static function run_script($layout_script,$param='',$layout_name='[inline]') {
+  static function run_script($layout_script,$param='',$layout_name='[inline]') {    
     $lines = Indentation::blocks($layout_script);
     $line_no_offset = 0;
     $output = array();
@@ -534,7 +534,7 @@ abstract class LayoutProcessor {
     return $param;
   }
   private static function eval_string($__stmt,$__parent=false) {
-    if($__parent) $__scope = & self::parent_scope();
+    if($__parent && count(self::$scope) > 1) $__scope = & self::parent_scope();
     else $__scope = & self::current_scope();
     extract($__scope['vars'],EXTR_SKIP|EXTR_REFS);
     $__stmt = addcslashes($__stmt,'"');
@@ -548,7 +548,7 @@ abstract class LayoutProcessor {
     return $res;
   }
   private static function eval_expr($__code,$__parent=false) {
-    if($__parent) $__scope = & self::parent_scope();
+    if($__parent && count(self::$scope) > 1) $__scope = & self::parent_scope();
     else $__scope = & self::current_scope();
     extract($__scope['vars'],EXTR_SKIP|EXTR_REFS);
     return @eval("return $__code;");    
