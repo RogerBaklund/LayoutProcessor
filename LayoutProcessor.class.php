@@ -23,8 +23,8 @@ Version history:
 abstract class LayoutProcessor {
   const PARAM_PLACEHOLDER = '$$',
     MAX_RECURSION_DEPTH = 255,
-    ERR_HTML = 1,
-    ERR_TEXT = 2,
+    ERR_TEXT = 1,
+    ERR_HTML = 2,
     ERR_LOG = 4,
     ERR_EXIT = 8,
     ERR_MSG_INTRO = 'Layout processing error: ';
@@ -101,6 +101,7 @@ abstract class LayoutProcessor {
   }
   static function load($layout_name) {
     self::error('load() is not implemented');
+    # !! Override this method!
     # This should return an array with keys: name, parent, id, content
     # 'content' must contain the actual layout, the others are only
     # used for context in error messages. See get() method.
@@ -110,7 +111,10 @@ abstract class LayoutProcessor {
       $layout_item = static::load($layout_name);
       if(!$layout_item) return false;
       self::$layouts[$layout_name] = $layout_item;
-      self::$context = $layout_item['name'].' #'.$layout_item['parent'].'/'.$layout_item['id'];
+      self::$context = 
+      (isset($layout_item['name']) ? $layout_item['name'] : $layout_item).
+      (isset($layout_item['parent']) ? ' #'.$layout_item['parent']:'').
+      (isset($layout_item['id']) ? '/'.$layout_item['id']:'');
     }
     return self::$layouts[$layout_name]['content'];
   }
@@ -216,24 +220,6 @@ abstract class LayoutProcessor {
     return '';
   }
   private static function assignment($stmt) {
-    # Supported syntax:
-    # $var = ...
-    # $var .= ...
-    # $var += ...
-    # $var -= ...
-    # $var *= ...
-    # $var /= ...
-    # $var[] = ...
-    # $arr[$idx] = ... 
-    # $str[$idx] = ...
-    # $arr[$key] = ...
-    # $obj->prop = ... 
-    # $var++
-    # $var--
-    ## Executes but does NOT output return values
-    # $func()
-    # $obj->method()
-    #
     ##### NOT supported:
     # $var = & ...     !!workaround: $var = $dummy = & ...
     # $$varname = ...  !!workaround: $dummy = $$varname = ...
