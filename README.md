@@ -73,7 +73,7 @@ echo LayoutProcessor::run_layout('Hello','world');
 ```
 ## Extending
 
-In general you would not use the LayoutProcessor class directly like in the basic examples above. 
+In general you would not use the `LayoutProcessor` class directly like in the basic examples above. 
 Instead you would write a subclass and extend it to fit more closely with your own application.
 There are some parts you most likely would want to override.
 
@@ -108,14 +108,14 @@ The following methods can be overridden.
 
 This is the most important method to override. 
 
-This method is executed when a undefined layout is called. It should be aware of the current context of 
+This method is executed when an undefined layout is called. It should be aware of the current context of 
 the application and load the layout from a repository (file system or database) depending on this context.
-For instance if a web application has current URL /foo/bar/ you should first look for the layout in /foo/bar, 
-if not found you should look in /foo and if it is not found there either you should look in / (root). 
+For instance if a web application has current URL `/foo/bar/` you should first look for the layout in `/foo/bar`, 
+if not found you should look in `/foo` and if it is not found there either you should look in `/` (root). 
 This way any layout can be overridden for different parts of the application.
 
 If the layout is not found this method must return false, an error message is generated from the 
-run_script() method. When the layout is found this method must return an associative array with the 
+`run_script()` method. When the layout is found this method must return an associative array with the 
 following keys:
 
 - `content` - the actual layout as a string (required)
@@ -129,9 +129,9 @@ layout name as key.
 
 #### get($layout_name)
 
-This method is responsible for finding the layout when it is called. It calls load() if it can not find
-the layout in memory. If load() fails get() must return false, otherwise it must return the layout as 
-a string, this will normally be the `content` of the array returned from load().
+This method is responsible for finding the layout when it is called. It calls `load()` if it can not find
+the layout in memory. If `load()` fails `get()` must return `false`, otherwise it must return the layout as 
+a string, this will normally be the `content` of the array returned from `load()`.
 
 ### Extension example
 
@@ -165,7 +165,7 @@ if(DEBUG_MODE) # enable HTML errors
 MyApp::on_error($error_mode);
 MyApp::set_logger(array('MyLoggerClass','log'));
 MyApp::run_layout('_init'); # setup, no output
-MyApp::run_layout('_main'); # main application start 
+echo MyApp::run_layout('_main'); # main application start 
 ```
 
 In this example it is presumed that you have a `MyLoggerClass` with a `log()` method and a
@@ -328,7 +328,9 @@ See examples of this below.
       "Ok!
     !else: "Failed!
     !if $height > 400:
-      !if $width > 400:
+      !if $width > 800:
+        HighVeryWideOutput
+      !elseif $width > 400:
         HighWideOutput
       !else: HighNarrowOutput
     !else:
@@ -336,6 +338,9 @@ See examples of this below.
         WideOutput
       !else SmallOutput
 
+**NOTE:** `!elif` is defined as an alias for `!elseif`. You can use either, but when there are errors the
+error messages will always report it as error in `!elseif`.
+      
 #### `!loop`/`!while`/`!break`/`!continue` Loops
 
 These statements are used for making loops. The `!loop` is similar to the PHP foreach statement,
@@ -360,6 +365,9 @@ Like `!if` and `!elseif` the expression must end with colon and the code block m
       </tr>
     </table>
 
+**NOTE:** `!foreach` is defined as an alias for `!loop`. You can use either, but when there are errors the
+error messages will always report it as error in `!loop`.
+    
 The `!while` command takes an expression as first argument and continues to execute the code block until the 
 expression is false. Like `!loop`, `!if` and `!elseif` the expression must end with colon and the code 
 block must start on a new line.
