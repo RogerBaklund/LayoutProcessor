@@ -16,7 +16,7 @@ Version history:
 
 # TODO:
 - improve parameter error handling
-- Error resume or similar
+- Error resume or similar (ERR_EXIT_CURRENT)
 - !continue <num>
   
  */
@@ -89,10 +89,11 @@ abstract class LayoutProcessor {
       (self::$context ? self::$context.' in ' : '').
       ($scope['layout_name'] ? $scope['layout_name'].' ':'').
       ($scope['line_no'] ? 'line '.$scope['line_no'] : '');
+    $logger_output = false;
     if(self::$error_mode & self::ERR_LOG && self::$logger) 
-      call_user_func(self::$logger,$context,$msg);
+      $logger_output = call_user_func(self::$logger,$context,$msg);
     if(!$html_mode && !$text_mode)
-      return '';
+      return $logger_output ? $logger_output : '';
     return ($html_mode ? '<p><code>' : '* ').
       static::ERR_MSG_INTRO.$context.':'.
       ($html_mode ? '</code>' : '').' '.
@@ -103,8 +104,8 @@ abstract class LayoutProcessor {
     self::error('load() is not implemented');
     # !! Override this method!
     # This should return an array with keys: name, parent, id, content
-    # 'content' must contain the actual layout, the others are only
-    # used for context in error messages. See get() method.
+    # 'content' must contain the actual layout, the others are optional
+    # and only used for context in error messages. See get() method.
   }
   static function get($layout_name) {
     if(!isset(self::$layouts[$layout_name])) {
@@ -112,7 +113,7 @@ abstract class LayoutProcessor {
       if(!$layout_item) return false;
       self::$layouts[$layout_name] = $layout_item;
       self::$context = 
-      (isset($layout_item['name']) ? $layout_item['name'] : $layout_item).
+      (isset($layout_item['name']) ? $layout_item['name'] : $layout_name).
       (isset($layout_item['parent']) ? ' #'.$layout_item['parent']:'').
       (isset($layout_item['id']) ? '/'.$layout_item['id']:'');
     }
@@ -134,7 +135,7 @@ abstract class LayoutProcessor {
     return self::$scope[count(self::$scope)-$i];
   }
   static function run_layout($layout_name,$param='') {
-    $layout_script = self::get($layout_name);
+    $layout_script = static::get($layout_name);
     return $layout_script ? self::run_script($layout_script,$param,$layout_name) : false;
   }
   static function run_script($layout_script,$param='',$layout_name='[inline]') {    
@@ -172,9 +173,9 @@ abstract class LayoutProcessor {
       } else {
         @list($layout_name,$param) = explode(':',$line,2);
         $scope['statement_type'] = 'layout';
-        $layout_script = self::get($layout_name);
+        $layout_script = static::get($layout_name);
         if($layout_script === false) {
-          if(strlen($layout_name) > 40)
+          if(strlen($layout_name) > 40) # probably indentation error
             $layout_name = htmlentities(substr($layout_name,0,40)).'...';
           $output[] = self::error('Undefined layout "'.$layout_name.'"');
         } else {
