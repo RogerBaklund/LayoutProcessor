@@ -18,13 +18,13 @@ and other special characters, *except* colon, which is used to separate the para
 
 The following prefixes are builtin:
 
-- `#` Comment
-- `$` Variable assignment 
-- `"` String output (variables resolved)
-- `'` Literal output (variables *not* resolved)
-- `=` Layout definition
-- `<` Markup
-- `!` Command
+- [`#` Comments](#comments)
+- [`$` Variable assignments](#assignments)
+- [`"` String output](#string-output) (variables resolved)
+- [`'` Literal output](#literal-output) (variables *not* resolved)
+- [`=` Layout definitions](#layout-definitions)
+- [`<` Markup](#markup)
+- [`!` Commands](#commands)
 
 You can add your own prefix or override any existing prefix with the `define_prefix($prefix,$callback)` method.
 
@@ -32,12 +32,12 @@ You can add your own prefix or override any existing prefix with the `define_pre
 
 The following commands are builtin:
 
-- `!php` Embedded PHP code 
-- `!if`/`!elseif`/`!else` Conditional statements
-- `!loop`/`!while`/`!break`/`!continue` Loops
-- `!scope` Variable scopes
-- `!param` Parameter handling
-- `!return` Exit current layout
+- [`!php` Embedded PHP code](#php-embedded-php-code) 
+- [`!if`/`!elseif`/`!else` Conditional statements](#ifelseifelse-conditional-statements)
+- [`!loop`/`!while`/`!break`/`!continue` Loops](#loopwhilebreakcontinue-loops)
+- [`!scope` Variable scopes](#scope-variable-scopes)
+- [`!param` Parameter handling](#param-parameter-handling)
+- [`!return` Exit current layout](#return-exit-current-layout)
 
 You can add custom commands with the `define_command($cmd,$callback)` method. You can not directly override 
 builtin commands, but you can add aliases with the `define_command_alias($alias,$aliased_command)` method, 
@@ -71,6 +71,114 @@ echo LayoutProcessor::run_script($script);
 # Because 'Hello' is now defined we can call it directly:
 echo LayoutProcessor::run_layout('Hello','world');
 ```
+## Extending
+
+In general you would not use the LayoutProcessor class directly like in the basic examples above. 
+Instead you would write a subclass and extend it to fit more closely with your own application.
+There are some parts you most likely would want to override.
+
+### Constants
+
+The following constants can be overridden.
+
+#### ERR_MSG_INTRO
+
+This is a constant which is used to prefix all error messages. The default value is `'Layout processing error: '`,
+you can change it to include your application name, like `'MyApp ERROR: '` or similar. Note that this constant 
+is used both for `ERR_TEXT` and `ERR_HTML` output (see [error handling](#error-handling), it should **not** 
+contain any HTML. It is not used for the message sent to the logger callback.
+
+#### PARAM_PLACEHOLDER
+
+The placeholder for literal parameters is defined in this constant, default value is `'$$'`. There is 
+usually no reason to override this, but you can.
+
+#### MAX_RECURSION_DEPTH
+
+The default maximum recursion depth is set to 255, this should be plenty in most cases, but you can change 
+it if you need to. You will get a 'Recursion error' message when this limit is exceeded. It usually means 
+there is a logical error in the code resulting in a loop: some layout A is calling B, which again is 
+calling A.
+
+### Methods
+
+The following methods can be overridden.
+
+#### load($layout_name)
+
+This is the most important method to override. 
+
+This method is executed when a undefined layout is called. It should be aware of the current context of 
+the application and load the layout from a repository (file system or database) depending on this context.
+For instance if a web application has current URL /foo/bar/ you should first look for the layout in /foo/bar, 
+if not found you should look in /foo and if it is not found there either you should look in / (root). 
+This way any layout can be overridden for different parts of the application.
+
+If the layout is not found this method must return false, an error message is generated from the 
+run_script() method. When the layout is found this method must return an associative array with the 
+following keys:
+
+- `content` - the actual layout as a string (required)
+- `name` - usually the layout name, could be a file name or other name (optional)
+- `parent` - context information, file path or DB reference (optional)
+- `id` - DB identifier, numeric or string (optional)
+
+The optional parts of this array is only used for context for error messages. You can add more meta 
+information in this layout if you need to, it is stored in the `static::$layouts` array with the 
+layout name as key.
+
+#### get($layout_name)
+
+This method is responsible for finding the layout when it is called. It calls load() if it can not find
+the layout in memory. If load() fails get() must return false, otherwise it must return the layout as 
+a string, this will normally be the `content` of the array returned from load().
+
+### Extension example
+
+```php
+define('DEBUG_MODE',0);
+
+class MyApp extends LayoutProcessor {
+  const ERR_MSG_INTRO = 'MyApp error: ';
+  static function current_context() {
+    # return current application context object
+  }
+  static function load($layout_name) {
+    $context = static::current_context();
+    $layout_item = $context->get_layout($layout_name);
+    while(!$layout_item && $context = $context->parent_context()) 
+      $layout_item = $context->get_layout($layout_name);
+    if(!$layout_item) return false;
+    return array(
+      'content' => $layout_item->content,
+      'name' => $layout_item->name,
+      'parent' => $layout_item->parent,
+      'id' => $layout_item->id);
+  }
+}
+
+$error_mode = MyApp::ERR_LOG;
+
+if(DEBUG_MODE) # enable HTML errors
+  $error_mode |= MyApp::ERR_HTML;
+
+MyApp::on_error($error_mode);
+MyApp::set_logger(array('MyLoggerClass','log'));
+MyApp::run_layout('_init'); # setup, no output
+MyApp::run_layout('_main'); # main application start 
+```
+
+In this example it is presumed that you have a `MyLoggerClass` with a `log()` method and a
+context object with `get_layout()` and `parent_context()` methods. What exactly a context is 
+depends on the application, it can be based on a file path or from a hierarchy stored in 
+a database.
+
+The `'_init'` and `'_main'` layouts are also just examples, you can call them anything and 
+it does not have to be two separate startup layouts like this, it could be three or one. 
+The point of having more than one is that it gives you more flexibility when it comes to 
+overriding defaults.
+
+---
 
 ## Standard prefixes
 
@@ -82,7 +190,7 @@ the script/template.
     # This is a comment.
       Comments can span multipe lines if the lines are indented.
 
-In some cases you can have comments on the same line as other statements, for instance after assignements
+In some cases you can have comments on the same line as other statements, for instance after assignments
 if you use a semicolon after the expression:
 
     $foo = 'bar';  # this is a valid comment
@@ -140,7 +248,7 @@ The `'` prefix is used for literal output. The block is output as is, without re
       lines if it is indented.
       The indentation is kept in the output.
 
-### Layout definition
+### Layout definitions
 
 The `=` prefix is used to define new or to override existing layouts. A layout can be very simple, defined 
 on a singe line, or it can be quite complex and large. There is no defined limit to the size. You can define 
@@ -327,19 +435,28 @@ Output:
     Step3: x=42 y=2
     end of Step1: y=3
 
-Note that y is 2 in Step3 because Step2 modified it before Step3 was executed, so did Step3 so it is 3 
-at the end of Step1.
+Note that y is 2 in Step3 because Step2 modified it before Step3 was executed, and so did Step3 so 
+it is 3 at the end of Step1.
+
+You can only fetch variables from active layouts, for instance in the example above Step1 could 
+not fetch anything from Step3 because it is not active while Step1 is running: it has not started 
+before Step2 is called, and it is finished when Step2 returns.
     
 #### `!param` Parameter handling
 
 This command can split and transform a parameter into one or more variables. 
 
-All layous have a "magic" variable named `$_param` which holds the parameter used when the layout 
-was called. In many cases you can just use this variable, but sometimes you need to use the `!param` 
-command to manipulate the parameter. A common and simple usage is `!param string` which is used to 
-resolve variables in the parameter, you can see a couple of examples of that above.
-([=Hello](#basic-examples) at the start and the [=alert](#layout-definition) example for layout 
-definitions.)
+For simple layouts with only one parameter which is always handled literally (no variables) 
+you can use the placeholder `$$` to indicate where the parameter goes. The first 
+[=Hello](#basic-examples) example above shows this usage. When using this no `!param` 
+command is needed for that layout.
+
+In addition to the `$$` placeholder all layouts have a "magic" variable named `$_param` which 
+holds the parameter used when the layout was called. In many cases you can just use this variable, 
+but sometimes you need to use the `!param` command to manipulate the parameter. A common and simple
+ usage is `!param string` which is used to resolve variables in the parameter, you can see a couple
+ of examples of that above. (The second [=Hello](#basic-examples) at the start and the 
+ [=alert](#layout-definition) example for layout definitions.)
 
 `string` is one of many predefined transformation types. You can provide multiple transformation 
 types in the same `!param` call, each is executed in order.
@@ -432,6 +549,9 @@ Unlike the PHP `return` statement it can **not** return a value.
       $email = $_POST['email']
       NewsletterSubscribe:$email
 
+
+---
+      
 ## Error handling
 
 By default error messages are output where errors are encountered, but the script continues to run. 
@@ -455,6 +575,11 @@ LayoutProcessor::set_logger(function($context,$msg) {
   error_log(date('Y-m-d H:i:s')." $context: $msg\n",3,'debug.log');
   });
 ```
+
+Note that the logger callback does not need to write to a log file, it can do anything, for instance 
+send an email and/or write a user friendly message on a designated are of the screen. 
+You can also use it to override the default error message by **not** using ERR_TEXT or ERR_HTML
+but instead return the formatted error message from the logger callback.
 
 ## Dependencies
 
