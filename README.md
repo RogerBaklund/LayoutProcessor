@@ -106,7 +106,7 @@ Big expressions can span multiple lines, just make sure they are indented.
     $obj->prop = 1
     $arr[] = 'new item'
     $arr[2] = 'changed'
-    $str[0]= 'X'
+    $str[0] = 'X'
 
 Some statements which are not "normal" assignments are also allowed, for instance:
 
@@ -156,7 +156,7 @@ layouts within other layouts, but they are all global, just like PHP functions.
 ### Markup
 
 The `<` prefix is used to output markup. This is similar to `'` (literal output), it does **not** 
-resolve variables or escape sequences. Though it is very simple, it is very useful when writing 
+resolve variables or escape sequences. Though it is quite primitive, it is very useful when writing 
 scripts which produce HTML or XML output.
 
     =MainMenu:
@@ -166,6 +166,14 @@ scripts which produce HTML or XML output.
     <div class="MenuContainer">
     MainMenu
     </div>
+    <!-- This comment will be visible in the HTML source -->
+    # This comment will not be visible
+    <p class="example">
+      This is a paragraph.
+      It can be split into multiple indented lines, 
+      the browser will format it as a normal paragraph
+      depending on the available width on screen.
+    </p>
 
 See also the `=alert` example above.
     
@@ -197,7 +205,7 @@ created inside the block is not automatically exported to the layout.
 These commands are used for conditional execution. `!elseif` and `!else` can only be used immediatly after 
 an `!if` or an `!elseif`. You can only have one `!else`. You can have nested `!if` inside another `!if`. 
 How deep you can nest is limited only by `MAX_RECURSION_DEPTH` (default 255). Unlike PHP the expression 
-to evluate does not need to be in parentheses, but it must be a valid PHP expression. 
+to evaluate does not need to be in parentheses, but it must be a valid PHP expression. 
 Long expressons can be broken on multiple lines, but they must of course be indented. 
 
 After the expression a colon and a new line is required. Even for short single statement blocks you can 
@@ -244,7 +252,7 @@ Like `!if` and `!elseif` the expression must end with colon and the code block m
       </tr>
     </table>
 
-The `!while` takes an expression as first argument and continues to execute the code block until the 
+The `!while` command takes an expression as first argument and continues to execute the code block until the 
 expression is false. Like `!loop`, `!if` and `!elseif` the expression must end with colon and the code 
 block must start on a new line.
 
@@ -273,11 +281,13 @@ This command is used to import variables from other variable scopes. Each layout
 scope, which means variables are by default local to the current layout. With `!scope` you can access
 variables which belongs to a different layout.
 
-There are three variants of the !scope` command. 
+There are three variants of the `!scope` command. 
 
 - `!scope global` Access global variables
 - `!scope caller` Access variables from the calling layout
 - `!scope from ...` Access variables from any active layout
+
+Example using `!scope caller`:
 
     =Greeting:
       !scope caller: $who
@@ -296,7 +306,7 @@ Output of the above would be:
 
 Example using `!scope from ...`:
     
-    # fetch variable from any previous scope
+    =Start:Step1
     =Step1: 
       $x = 42
       $y = 1
@@ -310,19 +320,118 @@ Example using `!scope from ...`:
       !scope from Step1: $x,$y
       "Step3: x=$x y=$y\n
       $y++
-    Step1
+    Start
 
 Output:
 
     Step3: x=42 y=2
     end of Step1: y=3
 
-Note that $y==2 in Step3 because Step2 modified it before Step3 was executed.
+Note that y is 2 in Step3 because Step2 modified it before Step3 was executed, so did Step3 so it is 3 
+at the end of Step1.
     
 #### `!param` Parameter handling
 
-#### `!return` Exit current layout
+This command can split and transform a parameter into one or more variables. 
+
+All layous have a "magic" variable named `$_param` which holds the parameter used when the layout 
+was called. In many cases you can just use this variable, but sometimes you need to use the `!param` 
+command to manipulate the parameter. A common and simple usage is `!param string` which is used to 
+resolve variables in the parameter, you can see a couple of examples of that above.
+([=Hello](#basic-examples) at the start and the [=alert](#layout-definition) example for layout 
+definitions.)
+
+`string` is one of many predefined transformation types. You can provide multiple transformation 
+types in the same `!param` call, each is executed in order.
+
+The formal syntax for the `!param` command is like this:
+
+    !param [<transformations>] [<separator> [(<count>|<min>-<max>)] ] [ : <variables>]
+
+There can be zero or more transformations. If there is only one parameter, there is no separator. 
+For multiple parameters there can be only one main separator, but there can be an 
+additional separator for each part separated by the main separator, defined in the `<variables>` 
+part of the command. When a `<separator>` is provided you can provide a `<count>` or a range 
+in parentheses. If it is a count it defines how many parameters are required. If it is a range it 
+means there are some optional parameters; the layout must be called with at least `<min>` and at 
+most `<max>` parameters.
+
+The `<variables>` part has two formats: either it is a simple comma separated list of variable names,
+or it is a line separated list of variable names with separate parameter definitions.
+
+Some examples might clarify:
+
+    # Variables are resolved in $_param
+    !param string
     
+    # Variables are resolved and stored in local variable $str
+    !param string:$str
+    
+    # Resolve variables and transform to upper case letters
+    !param string UPPER:$str
+    
+    # Split parameter on colon, $_param is an array
+    !param colon
+    
+    # Split parameter on colon, accept 0-2 parameters stored in 
+      local variables $a and $b. 
+      Use isset() to check if parameters are provided
+    !param colon(0-2):$a,$b
+    
+    # Split on colon into 3 parts. 
+      The first part is split on the | character and store in an array named $color, 
+        the first item is stored in $fg, 
+        the second item is optional and stored in $bg if provided.
+      The second part can be a variable (using 'string') 
+        the resolved result is stored in $msg.
+      The third part is split on comma and stored in an array named $dim, 
+        the two members are stored in variables $width and $height
+      Example parameter: red|black:$msg:200,30 
+    !param colon(3):
+      $color: pipe(1-2):$fg,$bg
+      $msg: string
+      $dim: comma(2):$width,$height
+
+**Predefined transformations:**
+
+- `raw` - No transformation (default)
+- `string` - Resolve variables
+- `expr` - Resolve variables and PHP expressions
+- `unhtml` - Escape HTML characters (`<` becomes `&lt;` an so on)
+- `urlify` - Escape characters for use in URL
+- `upper` - Transform to UPPER case letters
+- `lower` - Transform to lower case letters
+- `ucfirst` - Transform first letter to UPPER case 
+- `ucwords` - Transform first letter of each word to UPPER case 
+
+You can add custom transformations using the `add_transform($name,$callback)` method.
+
+**Separators:**
+
+- `colon` - Split on the `:` character
+- `semicolon` - Split on the `;` character
+- `comma` - Split on the `,` character
+- `dot` - Split on the `.` character
+- `amp` - Split on the `&` character
+- `space` - Split on the space character
+- `line` - Split on new line (`\n`)
+- `tab` - Split on TAB (`\t`)
+- `pipe` - Split on the `|` character
+- `dash` - Split on the `-` character
+- `plus` - Split on the `+` character
+- `slash` - Split on the `/` character
+
+#### `!return` Exit current layout
+
+This command exits the current layout and resumes execution with the next statement in the caller layout. 
+Unlike the PHP `return` statement it can **not** return a value.
+
+    =HandlePost:
+      !if !isset($_POST['email']):
+        !return
+      $email = $_POST['email']
+      NewsletterSubscribe:$email
+
 ## Error handling
 
 By default error messages are output where errors are encountered, but the script continues to run. 
