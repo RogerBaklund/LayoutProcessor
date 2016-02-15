@@ -563,9 +563,13 @@ Unlike the PHP `return` statement it can **not** return a value.
 ## Error handling
 
 By default error messages are output where errors are encountered, but the script continues to run. 
-You can configure the error handling using the `on_error($mode)` method. 
+You can configure the error handling using the `on_error($mode)` method.
 
-The following error mode flag constants are defined:
+The default mode is useful for a system under development. When it goes to production you should 
+disable the visual error messages and instead use `ERR_LOG` to write the messages to a file or a 
+database table. 
+
+The following error mode constants are defined:
 
 - `ERR_TEXT` Error message is output as plain text (default)
 - `ERR_HTML` Error message is output as HTML (in a `<p>` element)
@@ -577,14 +581,16 @@ The following error mode flag constants are defined:
 
 Use either `ERR_TEXT` or `ERR_HTML`, when both are used `ERR_TEXT` is ignored and HTML messages 
 are output. When none of them are used no error message is output, unless `ERR_LOG` is used and 
-the logger returns a message, **or** if `ERR_DIE` is used.
+the logger returns a message, **or** if `ERR_DIE` is used. Using none of them is recommended for
+an application in production, you don't want to show errors to the users.
 
-Use either `ERR_RESUME`, `ERR_EXIT`, `ERR_CANCEL` or `ERR_DIE`.
+Use one of `ERR_RESUME`, `ERR_EXIT`, `ERR_CANCEL`, `ERR_DIE` or none of them. If they are combined 
+the most severe action will be taken, for instance if `ERR_DIE` is enabled it will die. 
 
 `ERR_DIE` outputs a text error message regardless of `ERR_TEXT` or `ERR_HTML` settings. 
-It also exists the PHP script. It is usually better to use  `ERR_CANCEL`, which returns control 
+It also exits the PHP script. It is usually better to use  `ERR_CANCEL`, which returns control 
 to the script which called the `run_script()` method. It can return the error message if `ERR_TEXT`
-or `ERR_HTML` is enabled, but you can also check the LayoutProcessor::$error_exit static property,
+or `ERR_HTML` is enabled, but you can also check the `LayoutProcessor::$error_exit` static variable,
 it will contain the name of the layout which failed. It will be `false` if there was no error.
 
 When using `ERR_LOG` you must also define a callback for the logger using the `set_logger($callback)` method.
