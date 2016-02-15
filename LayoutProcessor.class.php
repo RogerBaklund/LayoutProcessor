@@ -26,7 +26,10 @@ abstract class LayoutProcessor {
     ERR_TEXT = 1,
     ERR_HTML = 2,
     ERR_LOG = 4,
-    ERR_EXIT = 8,
+    ERR_RESUME = 8,
+    ERR_EXIT = 16,
+    ERR_CANCEL = 32,
+    ERR_DIE = 64,
     ERR_MSG_INTRO = 'Layout processing error: ';
   static $error_mode = 1;
   static $logger = false;
@@ -77,14 +80,15 @@ abstract class LayoutProcessor {
   static function on_error($mode) {
     if(!is_numeric($mode)) return false;
     self::$error_mode = $mode;
+    self::$error_exit = false; # reset current error state
     return true;
   }
   static function error($msg){
     $scope = & self::current_scope();
     $html_mode = self::$error_mode & self::ERR_HTML;
     $text_mode = self::$error_mode & self::ERR_TEXT;
-    if(self::$error_mode & self::ERR_EXIT)
-      self::$error_exit = true;
+    if(self::$error_mode & (self::ERR_EXIT|self::ERR_CANCEL|self::ERR_RESUME))
+      self::$error_exit = $scope['layout_name'];
     $context = 
       (self::$context ? self::$context.' in ' : '').
       ($scope['layout_name'] ? $scope['layout_name'].' ':'').
@@ -92,6 +96,9 @@ abstract class LayoutProcessor {
     $logger_output = false;
     if(self::$error_mode & self::ERR_LOG && self::$logger) 
       $logger_output = call_user_func(self::$logger,$context,$msg);
+    if(self::$error_mode & self::ERR_DIE) 
+      die($logger_output ? $logger_output : 
+          '* '.static::ERR_MSG_INTRO.$context.': '.$msg);
     if(!$html_mode && !$text_mode)
       return $logger_output ? $logger_output : '';
     return ($html_mode ? '<p><code>' : '* ').
@@ -188,7 +195,15 @@ abstract class LayoutProcessor {
         $scope['prev_cmd'] = $scope['cmd'];
       } elseif($scope['statement_type'] == 'comment') {}
       else unset($scope['cmd'],$scope['prev_cmd']);
-      if(self::$error_exit) break;
+      if(self::$error_exit) {
+        if(self::$error_mode & self::ERR_CANCEL) 
+          return array_pop($output);
+        if(self::$error_mode & self::ERR_RESUME) {
+          if(self::$error_exit != $scope['layout_name'])
+            self::$error_exit = false;
+          else break;
+        } else break;
+      } 
       if(self::$continue_loop) break;
       if(self::$break_counter) break;
       if(self::$return) {
@@ -201,12 +216,12 @@ abstract class LayoutProcessor {
     return implode('',$output);
   }
   # 
-  private static function split_on_optional_char($haystack,$char=":") {
+  static function split_on_optional_char($haystack,$char=":") {
     $WS = " \r\n\t";
     $str = strtok($haystack,$WS.$char);
     return array($str,ltrim(substr($haystack,strlen($str)),$WS.$char));
   }
-  private static function split_on_colonLF($str) {
+  static function split_on_colonLF($str) {
     return preg_split('/:\n/',$str,2);
   }
   # prefix handlers

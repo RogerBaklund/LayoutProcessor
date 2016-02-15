@@ -570,23 +570,41 @@ The following error mode flag constants are defined:
 - `ERR_TEXT` Error message is output as plain text (default)
 - `ERR_HTML` Error message is output as HTML (in a `<p>` element)
 - `ERR_LOG` Error messages are sent to a logger callback
-- `ERR_EXIT` Error stops execution of the script
+- `ERR_RESUME` Error stops execution of the current layout, then continues running the script
+- `ERR_EXIT` Error stops execution of the script, already produced results is returned
+- `ERR_CANCEL` Error stops execution of `run_script()`, only the error message is returned
+- `ERR_DIE` Error stops execution of the **PHP script**, only the error message is output
 
-When using `ERR_LOG` you must also define a callback for the logger.
+Use either `ERR_TEXT` or `ERR_HTML`, when both are used `ERR_TEXT` is ignored and HTML messages 
+are output. When none of them are used no error message is output, unless `ERR_LOG` is used and 
+the logger returns a message, **or** if `ERR_DIE` is used.
 
-You can combine multiple flags, this example outputs HTML messages to screen and also writes
-messages to a file named `debug.log`:
+Use either `ERR_RESUME`, `ERR_EXIT`, `ERR_CANCEL` or `ERR_DIE`.
+
+`ERR_DIE` outputs a text error message regardless of `ERR_TEXT` or `ERR_HTML` settings. 
+It also exists the PHP script. It is usually better to use  `ERR_CANCEL`, which returns control 
+to the script which called the `run_script()` method. It can return the error message if `ERR_TEXT`
+or `ERR_HTML` is enabled, but you can also check the LayoutProcessor::$error_exit static property,
+it will contain the name of the layout which failed. It will be `false` if there was no error.
+
+When using `ERR_LOG` you must also define a callback for the logger using the `set_logger($callback)` method.
+The callback expects two parameters, the context for the error and the message.
+
+You can combine multiple flags using the | operator, this example outputs HTML messages to 
+screen, exits the layout with the error but resumes running the script, and also writes messages 
+to a file named `debug.log`:
 
 ```php
-LayoutProcessor::on_error(LayoutProcessor::ERR_HTML | LayoutProcessor::ERR_LOG);
-LayoutProcessor::set_logger(function($context,$msg) {
+class LP extends LayoutProcessor {}
+LP::on_error(LP::ERR_HTML | LP::ERR_RESUME | LP::ERR_LOG);
+LP::set_logger(function($context,$msg) {
   error_log(date('Y-m-d H:i:s')." $context: $msg\n",3,'debug.log');
   });
 ```
 
 Note that the logger callback does not need to write to a log file, it can do anything, for instance 
-send an email and/or write a user friendly message on a designated are of the screen. 
-You can also use it to override the default error message by **not** using ERR_TEXT or ERR_HTML
+send an email and/or write a user friendly message on a designated area of the screen. 
+You can also use it to override the default error message by **not** using `ERR_TEXT` or `ERR_HTML`
 but instead return the formatted error message from the logger callback.
 
 ## Dependencies
