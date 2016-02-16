@@ -429,7 +429,7 @@ Example using `!scope from ...`:
       Step2
       "end of Step1: y=$y\n
     =Step2:
-      !scope parent: $y
+      !scope caller: $y
       $y++
       Step3
     =Step3:
@@ -569,23 +569,30 @@ The default mode is useful for a system under development. When it goes to produ
 disable the visual error messages and instead use `ERR_LOG` to write the messages to a file or a 
 database table. 
 
-The following error mode constants are defined:
+The following error mode constants controls output of the error messages:
 
+- `ERR_SILENT` No error message is output unless the logger returns a message
 - `ERR_TEXT` Error message is output as plain text (default)
 - `ERR_HTML` Error message is output as HTML (in a `<p>` element)
 - `ERR_LOG` Error messages are sent to a logger callback
-- `ERR_RESUME` Error stops execution of the current layout, then continues running the script
-- `ERR_EXIT` Error stops execution of the script, already produced results is returned
-- `ERR_CANCEL` Error stops execution of `run_script()`, only the error message is returned
-- `ERR_DIE` Error stops execution of the **PHP script**, only the error message is output
 
-Use either `ERR_TEXT` or `ERR_HTML`, when both are used `ERR_TEXT` is ignored and HTML messages 
-are output. When none of them are used no error message is output, unless `ERR_LOG` is used and 
-the logger returns a message, **or** if `ERR_DIE` is used. Using none of them is recommended for
-an application in production, you don't want to show errors to the users.
+Use either `ERR_SILENT`, `ERR_TEXT` or `ERR_HTML`. When more than one is used `ERR_SILENT` is ignored,
+if `ERR_HTML` is used `ERR_TEXT` is ignored and HTML messages are output. When none of them are used 
+`ERR_SILENT` is the efault and no error message is output, unless `ERR_LOG` is used and the logger returns 
+a message, **or** if `ERR_DIE` is used (see below). Using `ERR_SILENT` combined with `ERR_LOG` is recommended 
+for an application in production, you don't want to show errors to the users.
 
-Use one of `ERR_RESUME`, `ERR_EXIT`, `ERR_CANCEL`, `ERR_DIE` or none of them. If they are combined 
-the most severe action will be taken, for instance if `ERR_DIE` is enabled it will die. 
+The following error mode constants controls program flow when an error is encountered:
+
+- `ERR_CONTINUE` Error handled according to output/log settings, continues running the script (default)
+- `ERR_RESUME` Exits the current layout, then continues running the script
+- `ERR_EXIT` Stops execution of `run_script()`, already produced results is returned
+- `ERR_CANCEL` Stops execution of `run_script()`, only the error message is returned
+- `ERR_DIE` Stops execution of the **PHP script**, only the error message is output
+
+Use one of `ERR_CONTINUE`, `ERR_RESUME`, `ERR_EXIT`, `ERR_CANCEL`, `ERR_DIE` or none of them. 
+If they are combined the most severe action will be taken, for instance if `ERR_DIE` is enabled 
+it will die, if any of the others are enbled `ERR_CONTINUE` is ignored, and so on. 
 
 `ERR_DIE` outputs a text error message regardless of `ERR_TEXT` or `ERR_HTML` settings. 
 It also exits the PHP script. It is usually better to use  `ERR_CANCEL`, which returns control 
