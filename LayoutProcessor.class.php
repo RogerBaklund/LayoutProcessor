@@ -15,23 +15,25 @@ Version history:
 - 1.0 2016-02-10 (initial version)
 
 # TODO:
-- improve parameter error handling
-- Error resume or similar (ERR_EXIT_CURRENT)
 - !continue <num>
-  
+- disable alias? alternatively expand it to allow parameters
+
  */
 abstract class LayoutProcessor {
   const PARAM_PLACEHOLDER = '$$',
     MAX_RECURSION_DEPTH = 255,
+    ERR_SILENT = 0,
     ERR_TEXT = 1,
     ERR_HTML = 2,
     ERR_LOG = 4,
+    ERR_CONTINUE = 0,
     ERR_RESUME = 8,
     ERR_EXIT = 16,
     ERR_CANCEL = 32,
     ERR_DIE = 64,
     ERR_MSG_INTRO = 'Layout processing error: ';
   static $error_mode = 1;
+  static $shutdown_function_registered = false;
   static $logger = false;
   static $layouts = array();
   static $context = NULL;
@@ -110,7 +112,7 @@ abstract class LayoutProcessor {
   static function load($layout_name) {
     self::error('load() is not implemented');
     # !! Override this method!
-    # This should return an array with keys: name, parent, id, content
+    # This should return an array with keys: content, name, parent, id
     # 'content' must contain the actual layout, the others are optional
     # and only used for context in error messages. See get() method.
   }
@@ -118,6 +120,8 @@ abstract class LayoutProcessor {
     if(!isset(self::$layouts[$layout_name])) {
       $layout_item = static::load($layout_name);
       if(!$layout_item) return false;
+      if(!isset($layout_item['content'])) 
+        return false; # ! error in load()
       self::$layouts[$layout_name] = $layout_item;
       self::$context = 
       (isset($layout_item['name']) ? $layout_item['name'] : $layout_name).
@@ -134,18 +138,27 @@ abstract class LayoutProcessor {
   }
   static function & find_scope($layout_name='',$cmd='') {
     $i = 1;
+    $null = NULL;
     while($i<count(self::$scope) && 
       (!$layout_name||self::$scope[count(self::$scope)-$i]['layout_name'] != $layout_name) &&
       (!$cmd||self::$scope[count(self::$scope)-$i]['cmd'] != $cmd)) $i++;
     if(($layout_name && self::$scope[count(self::$scope)-$i]['layout_name'] != $layout_name) ||
-       ($cmd && self::$scope[count(self::$scope)-$i]['cmd'] != $cmd)) return NULL;
+       ($cmd && self::$scope[count(self::$scope)-$i]['cmd'] != $cmd)) return $null;
     return self::$scope[count(self::$scope)-$i];
   }
   static function run_layout($layout_name,$param='') {
     $layout_script = static::get($layout_name);
     return $layout_script ? self::run_script($layout_script,$param,$layout_name) : false;
   }
-  static function run_script($layout_script,$param='',$layout_name='[inline]') {    
+  static function run_script($layout_script,$param='',$layout_name='[inline]') {
+    if(!self::$shutdown_function_registered) {
+      register_shutdown_function(function() {
+  	    if(($e=error_get_last()) && ($e['message']>'')) {
+          echo LayoutProcessor::error($e['message'].' (script crashed!)');
+        }
+      });
+      self::$shutdown_function_registered = true;
+    }
     $lines = Indentation::blocks($layout_script);
     $line_no_offset = 0;
     $output = array();
@@ -245,7 +258,7 @@ abstract class LayoutProcessor {
     $scope = & self::current_scope();
     if(!isset($scope['vars'][ $m[0] ]))
       $scope['vars'][ $m[0] ] = NULL;
-    @trigger_error('');
+    #@trigger_error('');
     $res = self::eval_expr("\$$stmt");
     if($res === false) {      
       $e = error_get_last();
@@ -274,7 +287,9 @@ abstract class LayoutProcessor {
       case 'php':
         return self::eval_php($param);
       case 'if':
-        list($expr,$code) = self::split_on_colonLF($param);
+        @list($expr,$code) = self::split_on_colonLF($param);
+        if(is_null($code))
+          return self::error('Bad syntax for !if, colon followed by linefeed and code was expected');
         $scope['if_state'] = true;
         if(self::eval_expr($expr))
           return self::run_script(Indentation::unindent($code));
@@ -284,10 +299,12 @@ abstract class LayoutProcessor {
       case 'elseif':     
         if(!isset($scope['prev_cmd']) || 
            !in_array($scope['prev_cmd'],array('if','elseif')))
-           return self::error('Illegal syntax, !elseif only allowed after !if or !elseif');
+           return self::error('Bad syntax, !elseif only allowed after !if or !elseif');
         if($scope['if_state'] === true) 
           return '';
-        list($expr,$code) = self::split_on_colonLF($param);
+        @list($expr,$code) = self::split_on_colonLF($param);
+        if(is_null($code))
+          return self::error('Bad syntax for !elseif, colon followed by linefeed and code was expected');
         if(self::eval_expr($expr)) {
           $scope['if_state'] = true;
           return self::run_script(Indentation::unindent($code));
@@ -296,12 +313,14 @@ abstract class LayoutProcessor {
       case 'else':        
         if(!isset($scope['prev_cmd']) || 
            !in_array($scope['prev_cmd'],array('if','elseif')))
-           return self::error('Illegal syntax, !else only allowed after !if or !elseif');
+           return self::error('Bad syntax, !else only allowed after !if or !elseif');
         if($scope['if_state'] === false) 
           return self::run_script(Indentation::unindent($param));
         break;
       case 'loop':
-        list($expr,$code) = self::split_on_colonLF($param);
+        @list($expr,$code) = self::split_on_colonLF($param);
+        if(is_null($code))
+          return self::error('Bad syntax for !loop, colon followed by linefeed and code was expected');
         if(!preg_match('/^(.+)\s+as\s+\$([a-z_][a-z0-9_]*)(\s*=>\s*\$([a-z_][a-z0-9_]*))?\s*$/i',$expr,$m))
           return self::error('Invalid syntax for !loop');
         $expr = trim($m[1]);
@@ -328,7 +347,9 @@ abstract class LayoutProcessor {
         }
         return implode('',$loop_output);
       case 'while':
-        list($expr,$code) = self::split_on_colonLF($param);
+        @list($expr,$code) = self::split_on_colonLF($param);
+        if(is_null($code))
+          return self::error('Bad syntax for !while, colon followed by linefeed and code was expected');
         $code = Indentation::unindent($code);
         $loop_output = array();
         while(self::eval_expr($expr)) {
@@ -353,13 +374,13 @@ abstract class LayoutProcessor {
       case 'scope':
         list($type,$vars) = self::split_on_optional_char($param);
         if(!$vars) 
-          return self::error('Bad syntax for scope command, variable names required');
+          return self::error('Bad syntax for !scope, variable names required');
         $type = strtolower($type);
         switch($type) {
           case 'from':
             list($layout_name,$vars) = self::split_on_optional_char($vars);
             if(!$vars) 
-              return self::error('Bad syntax for scope command, variable names required');
+              return self::error('Bad syntax for !scope, variable names required');
             $fscope = & self::find_scope($layout_name);
             if(is_null($fscope))
               return self::error('Scope "'.$layout_name.'" was not found');
@@ -369,9 +390,9 @@ abstract class LayoutProcessor {
             }
             break;
           case 'caller':
-          case 'parent':
+          #case 'parent':
             if(count(self::$scope) < 2) 
-              return self::error('There is no parent scope!');
+              return self::error('There is no caller scope!');
             $pscope = & self::parent_scope();
             foreach(array_map('trim',explode(',',$vars)) as $var) {
               $var = ltrim($var,'$');
@@ -385,13 +406,14 @@ abstract class LayoutProcessor {
             }
             break;
           default:
-            return self::error('Invalid scope type "'.$type.'", expected "parent" or "global"');
+            return self::error('Invalid scope type "'.$type.'", expected "from", "caller" or "global"');
         }
         break;
       case 'param':
-        $tmp = self::param($param,$scope['vars']['_param']);
-        # !chk for error
-        $scope['vars']['_param'] = $tmp;
+        list($accepted,$res) = self::param($param,$scope['vars']['_param']);
+        if(!$accepted)
+          return self::error($res);
+        $scope['vars']['_param'] = $res;
         break;
       default:
         if(in_array($cmd,array_keys(self::$custom_commands))) {
@@ -414,14 +436,14 @@ abstract class LayoutProcessor {
       list($pt1,$rest) = explode('(',$ptype,2);
       $ptype = rtrim($pt1);
       if(substr($rest,-1) != ')')
-        return self::error('Bad syntax for !param, missing )');
+        return array(false,'Bad syntax for !param, missing )');
       $pcount = substr($rest,0,-1);
       if(strpos($pcount,'-') !== false) { # range
         list($min_count,$max_count) = array_map('trim',explode('-',$pcount,2));
         $min_count = (int) $min_count;
         $max_count = (int) $max_count;
         if($max_count <= $min_count)
-          return self::error('Error in !param, max count must be larger than min count! '."($min_count-$max_count)");
+          return array(false,'Error in !param, max count must be larger than min count! '."($min_count-$max_count)");
       } else {
         $min_count = (int) $pcount;
       }
@@ -434,11 +456,11 @@ abstract class LayoutProcessor {
       if(in_array($pt,array_keys(self::$custom_transform_types))) continue;
       if(in_array($pt,array_keys($separator_types))) {
         if($sep_type) 
-          return self::error('Bad parameter type for !param, only one separator allowed');
+          return array(false,'Error in !param, only one separator allowed, '.$pt.' conflicts with '.$sep_type);
         $sep_type = $pt;
         continue;
       }
-      return self::error('Unknown parameter type: '.$pt);
+      return array(false,'Unknown parameter type: '.$pt);
     }
     $names = array();  # find variable names provided in definition
     if($pdef) {
@@ -458,11 +480,11 @@ abstract class LayoutProcessor {
       if($names) {
         if($max_count) { # range
           if(count($names) != $max_count)
-            return self::error('Variable count mismatch in !param, found '.
+            return array(false,'Variable count mismatch in !param, found '.
                             count($names)." variables, but expected up to $max_count");
         } else { # exact count
           if(count($names)!=$min_count)
-            return self::error('Variable count mismatch in !param, found '.
+            return array(false,'Variable count mismatch in !param, found '.
                             count($names)." variables, but expected $min_count");
         }
       }
@@ -484,7 +506,7 @@ abstract class LayoutProcessor {
       } elseif(in_array($pt,array_keys(self::$custom_transform_types))) {
         $trans = self::$custom_transform_types[$pt];
         $param = call_user_func($trans,$param);
-      }
+      } # else ? sep_type?
     }
     $sep = false; 
     if($sep_type && isset($separator_types[$sep_type]))
@@ -494,11 +516,11 @@ abstract class LayoutProcessor {
         if($max_count) { # range
           $param = array_map('trim',explode($sep,$param,$max_count));
           if((count($param) < $min_count) || (count($param) > $max_count))
-            return self::error('Bad parameter count, got '.count($param).', expected '.$min_count.'-'.$max_count); 
+            return array(false,'Bad parameter count, got '.count($param).', expected '.$min_count.'-'.$max_count); 
         } else { # exact count
           $param = array_map('trim',explode($sep,$param,$min_count));
           if(count($param) != $min_count)
-            return self::error($min_count.' parameters was required, got '.count($param));
+            return array(false,$min_count.' parameters was required, got '.count($param));
         }        
       } else { # no restrictions
         $param = array_map('trim',explode($sep,$param));
@@ -507,15 +529,15 @@ abstract class LayoutProcessor {
       if(count($names) == 1) {
         $param = array($param);
       } else
-        return self::error('A separator specification is needed for the parameters');
+        return array(false,'A separator specification is needed for the parameters');
     }
     if($min_count) { # !! is this needed? duplicated? see above
       if($max_count) {  # range
         if((count($param) < $min_count) || (count($param) > $max_count))
-          return self::error('Bad parameter count, got '.count($param).', expected '.$min_count.'-'.$max_count);
+          return array(false,'Bad parameter count, got '.count($param).', expected '.$min_count.'-'.$max_count);
       } else { # exact count
         if(count($param) != $min_count)
-          return self::error('Bad parameter count, got '.count($param).', expected '.$min_count);
+          return array(false,'Bad parameter count, got '.count($param).', expected '.$min_count);
       }
     }
     if($names) {
@@ -524,17 +546,23 @@ abstract class LayoutProcessor {
       if(isset($p_store)) {
         foreach($p_store as $name=>$def) {
           if($name[0]=='$') $name = substr($name,1);
-          $scope['vars'][$name] = self::param($def,array_shift($param_copy)); # recursive
+          # else error?
+          list($accepted,$res) = self::param($def,array_shift($param_copy)); # recursive
+          if($accepted)
+            $scope['vars'][$name] = $res;
+          else
+            return array(false,$res);
         }
       } else {
         foreach($names as $name) {
           if($name[0]=='$') $name = substr($name,1);
+          # else error?
           $val = array_shift($param_copy);
           $scope['vars'][$name] = $val;
         }
       }
     }
-    return $param;
+    return array(true,$param);
   }
   private static function eval_string($__stmt,$__parent=false) {
     if($__parent && count(self::$scope) > 1) $__scope = & self::parent_scope();
@@ -543,10 +571,10 @@ abstract class LayoutProcessor {
     $__stmt = addcslashes($__stmt,'"');
     @trigger_error('');
     $res = @eval('return "'.$__stmt.'";');
-    if($res === false) {
-      $e = error_get_last();
-      if($e && $e['message'] > '')
-        return self::error($e['message']);
+    $e = error_get_last();
+    if($e && $e['message'] > '') {
+      @trigger_error('');
+      return self::error($e['message']);
     }
     return $res;
   }
@@ -554,13 +582,15 @@ abstract class LayoutProcessor {
     if($__parent && count(self::$scope) > 1) $__scope = & self::parent_scope();
     else $__scope = & self::current_scope();
     extract($__scope['vars'],EXTR_SKIP|EXTR_REFS);
+    @trigger_error('');
     return @eval("return $__code;");    
   }
   private static function eval_php($__code) {
     $__scope = & self::current_scope();
     extract($__scope['vars'],EXTR_SKIP|EXTR_REFS);
+    @trigger_error('');
     ob_start();
-    eval("$__code;");
+    @eval("$__code;");
     return ob_get_clean();
   }
 }
