@@ -239,7 +239,8 @@ abstract class LayoutProcessor {
   }
   # prefix handlers
   private static function define_layout($stmt) {
-    @list($layout_name,$layout_script) = array_map('trim',explode(':',$stmt,2));
+    @list($layout_name,$layout_script) = explode(':',$stmt,2);
+    $layout_name = trim($layout_name);
     $scope = & self::current_scope();
     self::$layouts[$layout_name] = array(
       'content'=>Indentation::unindent($layout_script),
@@ -258,12 +259,13 @@ abstract class LayoutProcessor {
     $scope = & self::current_scope();
     if(!isset($scope['vars'][ $m[0] ]))
       $scope['vars'][ $m[0] ] = NULL;
-    #@trigger_error('');
     $res = self::eval_expr("\$$stmt");
     if($res === false) {      
       $e = error_get_last();
-      if($e['message'] > '')
+      if($e['message'] > '') {
+        @trigger_error('');
         return self::error($e['message']);
+      }
     }
     return '';
   }
