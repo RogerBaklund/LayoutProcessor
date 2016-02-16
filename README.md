@@ -188,10 +188,10 @@ Comments are prefixed with a `#` character. They produce no output, they are jus
 the script/template.
 
     # This is a comment.
-      Comments can span multipe lines if the lines are indented.
+      Comments can span multiple lines if the lines are indented.
 
-In some cases you can have comments on the same line as other statements, for instance after assignments
-if you use a semicolon after the expression:
+In some cases you can have single line comments on the same line as other statements, for instance 
+after assignments if you use a semicolon after the expression:
 
     $foo = 'bar';  # this is a valid comment
 
@@ -206,8 +206,8 @@ Big expressions can span multiple lines, just make sure they are indented.
     $foo = functionCall()
     $bar = $obj->method()
     $str = "x=$x".
-      ($foo?' foo='.$foo:'').
-      "<br>"
+      ($foo ? ' foo='.$foo : '').
+      '<br>'
     $coord = array($x,$y)
     $coord = [$x,$y];  # requires PHP 5.4+
     $avg = ($x+$y) / 2
@@ -230,7 +230,7 @@ The following two special cases are also allowed, they execute but any return va
 ### String output
 
 The `"` prefix is used for string output. The block is output after resolving variables and escape sequences.
-This works very similar to PHP double quotes strings, except you do not have to escape double quotes inside
+This works very similar to PHP double quoted strings, except you do not have to escape double quotes inside
 the string, and there is no double quote at the end. 
 
     "Hello world\n
@@ -245,7 +245,7 @@ The `'` prefix is used for literal output. The block is output as is, without re
 
     'This is literal output, $foo is just $foo, variables are not resolved
     'The output can span multiple 
-      lines if it is indented.
+      lines if they are indented.
       The indentation is kept in the output.
 
 ### Layout definitions
@@ -260,7 +260,35 @@ layouts within other layouts, but they are all global, just like PHP functions.
       <span class="glyphicon glyphicon-exclamation-sign" style="font-size:150%;color:red"></span>
       " $msg
       </div>
-    
+
+A layout with a single statement can be defined on one line, but care must be taken when it is a single 
+multiline statement. This will fail:
+
+    =foo:<p>This paragraph 
+            spans two lines</p>
+
+The parser can not distinguish between a single multiline statement and multiple statements. It will treat 
+the second line as a statement and fail with the message `Undefined layout "spans two lines</p>"`
+
+The solution is to start the multiline statement on a new indented line:
+
+    =foo:
+      <p>This paragraph 
+         spans two lines</p>
+
+When there are multiple statements this is not a problem. This works:
+
+    =foo:<p>This paragraph 
+            spans two lines</p>
+         <p>Another paragraph</p>
+
+It works because the second line is indented more than the third. This would have failed:
+
+    =foo:<p>This paragraph 
+         spans two lines</p>
+         <p>Another paragraph</p>
+
+         
 ### Markup
 
 The `<` prefix is used to output markup. This is similar to `'` (literal output), it does **not** 
@@ -305,7 +333,7 @@ or a larger block of code, for instance a function call or a class or function d
         }
       }
 
-Variables in the current layout is automaticaly made available in the `!php` block, but variables
+Variables in the current layout is automatically made available in the `!php` block, but variables
 created inside the block is not automatically exported to the layout.
 
 #### `!if`/`!elseif`/`!else` Conditional statements
@@ -314,7 +342,7 @@ These commands are used for conditional execution. `!elseif` and `!else` can onl
 an `!if` or an `!elseif`. You can only have one `!else`. You can have nested `!if` inside another `!if`. 
 How deep you can nest is limited only by `MAX_RECURSION_DEPTH` (default 255). Unlike PHP the expression 
 to evaluate does not need to be in parentheses, but it must be a valid PHP expression. 
-Long expressons can be broken on multiple lines, but they must of course be indented. 
+Long expressions can be broken on multiple lines, but they must of course be indented. 
 
 After the expression a colon and a new line is required. Even for short single statement blocks you can 
 **not** put the statement on the same line as the condition. Indentation is (as always) also required.
@@ -324,9 +352,11 @@ See examples of this below.
 
     !if $foo == 'bar':
       FooBar
+      
     !if $obj->method():
       "Ok!
     !else: "Failed!
+    
     !if $height > 400:
       !if $width > 800:
         HighVeryWideOutput
@@ -338,7 +368,7 @@ See examples of this below.
         WideOutput
       !else SmallOutput
 
-**NOTE:** `!elif` is defined as an alias for `!elseif`. You can use either, but when there are errors the
+**NOTE:** `!elif` is defined as an alias for `!elseif`. You can use either, but if there are errors the
 error messages will always report it as error in `!elseif`.
       
 #### `!loop`/`!while`/`!break`/`!continue` Loops
@@ -365,7 +395,7 @@ Like `!if` and `!elseif` the expression must end with colon and the code block m
       </tr>
     </table>
 
-**NOTE:** `!foreach` is defined as an alias for `!loop`. You can use either, but when there are errors the
+**NOTE:** `!foreach` is defined as an alias for `!loop`. You can use either, but if there are errors the
 error messages will always report it as error in `!loop`.
     
 The `!while` command takes an expression as first argument and continues to execute the code block until the 
@@ -462,9 +492,9 @@ command is needed for that layout.
 In addition to the `$$` placeholder all layouts have a "magic" variable named `$_param` which 
 holds the parameter used when the layout was called. In many cases you can just use this variable, 
 but sometimes you need to use the `!param` command to manipulate the parameter. A common and simple
- usage is `!param string` which is used to resolve variables in the parameter, you can see a couple
- of examples of that above. (The second [=Hello](#basic-examples) at the start and the 
- [=alert](#layout-definition) example for layout definitions.)
+usage is `!param string` which is used to resolve variables in the parameter, you can see a couple
+of examples of that above. (The second [=Hello](#basic-examples) at the start and the 
+[=alert](#layout-definition) example for layout definitions.)
 
 `string` is one of many predefined transformation types. You can provide multiple transformation 
 types in the same `!param` call, each is executed in order.
@@ -504,7 +534,7 @@ Some examples might clarify:
     !param colon(0-2):$a,$b
     
     # Split on colon into 3 parts. 
-      The first part is split on the | character and store in an array named $color, 
+      The first part is split on the | character and stored in an array named $color, 
         the first item is stored in $fg, 
         the second item is optional and stored in $bg if provided.
       The second part can be a variable (using 'string') 
