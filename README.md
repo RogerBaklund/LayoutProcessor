@@ -608,7 +608,7 @@ The following error mode constants controls output of the error messages:
 
 Use either `ERR_SILENT`, `ERR_TEXT` or `ERR_HTML`. When more than one is used `ERR_SILENT` is ignored,
 if `ERR_HTML` is used `ERR_TEXT` is ignored and HTML messages are output. When none of them are used 
-`ERR_SILENT` is the efault and no error message is output, unless `ERR_LOG` is used and the logger returns 
+`ERR_SILENT` is the default and no error message is output, unless `ERR_LOG` is used and the logger returns 
 a message, **or** if `ERR_DIE` is used (see below). Using `ERR_SILENT` combined with `ERR_LOG` is recommended 
 for an application in production, you don't want to show errors to the users.
 
