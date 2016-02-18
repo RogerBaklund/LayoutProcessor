@@ -154,7 +154,7 @@ abstract class LayoutProcessor {
     if(!self::$shutdown_function_registered) {
       register_shutdown_function(function() {
   	    if(($e=error_get_last()) && ($e['message']>'')) {
-          echo LayoutProcessor::error($e['message'].' (script crashed!)');
+          echo LayoutProcessor::error($e['message'].' (script crashed: '.$e['file'].':'.$e['line'].')');
         }
       });
       self::$shutdown_function_registered = true;
@@ -169,8 +169,11 @@ abstract class LayoutProcessor {
       'vars' => array('_param'=>$param),
       'if_state' => NULL,
     );
-    if(self::$scope && isset(self::$scope[count(self::$scope)-1]['cmd']) && 
-       in_array(self::$scope[count(self::$scope)-1]['cmd'],
+    if(self::$scope 
+       && isset(self::$scope[count(self::$scope)-1]['statement_type'])
+       && self::$scope[count(self::$scope)-1]['statement_type'] == 'command'
+       && isset(self::$scope[count(self::$scope)-1]['cmd']) 
+       && in_array(self::$scope[count(self::$scope)-1]['cmd'],
                 array('if','elseif','else','loop','while'))) {
       $scope['vars'] = & self::$scope[count(self::$scope)-1]['vars'];
       $scope['layout_name'] = self::$scope[count(self::$scope)-1]['layout_name'];
@@ -294,7 +297,7 @@ abstract class LayoutProcessor {
           return self::error('Bad syntax for !if, colon followed by linefeed and code was expected');
         $scope['if_state'] = true;
         if(self::eval_expr($expr))
-          return self::run_script(Indentation::unindent($code));
+          return self::run_script(Indentation::unindent("\n".$code));
         else
           $scope['if_state'] = false;
         break;
@@ -309,7 +312,7 @@ abstract class LayoutProcessor {
           return self::error('Bad syntax for !elseif, colon followed by linefeed and code was expected');
         if(self::eval_expr($expr)) {
           $scope['if_state'] = true;
-          return self::run_script(Indentation::unindent($code));
+          return self::run_script(Indentation::unindent("\n".$code));
         } else $scope['if_state'] = false;
         break;
       case 'else':        
@@ -333,7 +336,7 @@ abstract class LayoutProcessor {
         $keyname = isset($m[4]) ? $m[2] : NULL;
         if(!is_array($arr)) 
           return self::error('An array is required for !loop, got '.gettype($arr));
-        $code = Indentation::unindent($code);
+        $code = Indentation::unindent("\n".$code);
         $loop_output = array();
         foreach($arr as $key => $item) {
           if(!is_null($keyname)) 
@@ -352,7 +355,7 @@ abstract class LayoutProcessor {
         @list($expr,$code) = self::split_on_colonLF($param);
         if(is_null($code))
           return self::error('Bad syntax for !while, colon followed by linefeed and code was expected');
-        $code = Indentation::unindent($code);
+        $code = Indentation::unindent("\n".$code);
         $loop_output = array();
         while(self::eval_expr($expr)) {
           $loop_output[] = self::run_script($code);
@@ -478,7 +481,7 @@ abstract class LayoutProcessor {
       } else
         $names = array_map('trim',explode(',',$pdef));
     }
-    if($min_count) {
+    if($min_count !== false) {
       if($names) {
         if($max_count) { # range
           if(count($names) != $max_count)
@@ -514,7 +517,7 @@ abstract class LayoutProcessor {
     if($sep_type && isset($separator_types[$sep_type]))
       $sep = $separator_types[$sep_type];
     if($sep) {
-      if($min_count) {
+      if($min_count !== false) {
         if($max_count) { # range
           $param = array_map('trim',explode($sep,$param,$max_count));
           if((count($param) < $min_count) || (count($param) > $max_count))
@@ -533,7 +536,7 @@ abstract class LayoutProcessor {
       } else
         return array(false,'A separator specification is needed for the parameters');
     }
-    if($min_count) { # !! is this needed? duplicated? see above
+    if($min_count > 0) { # !! is this needed? duplicated? see above
       if($max_count) {  # range
         if((count($param) < $min_count) || (count($param) > $max_count))
           return array(false,'Bad parameter count, got '.count($param).', expected '.$min_count.'-'.$max_count);
