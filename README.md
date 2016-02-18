@@ -5,8 +5,8 @@ PHP class for template processing with extensible scripting language.
 This class can process templates conforming to a simple syntax based on indented blocks of lines. 
 
 The first character of a line is used to determine what kind of block it is, this first character 
-is called the prefix. If it is a space (or TAB) character, it is an indented line and it belongs to 
-the same block as the previous line. Blank lines are ignored.
+is called the prefix. If it is a space (or TAB) character, it is an indented line and it belongs 
+to the same block as the previous line. Blank lines are ignored.
 
 A set of prefix characters has builtin support, but you can override these and/or add your own prefixes.
 
@@ -42,6 +42,8 @@ The following commands are builtin:
 You can add custom commands with the `define_command($cmd,$callback)` method. You can not directly override 
 builtin commands, but you can add aliases with the `define_command_alias($alias,$aliased_command)` method, 
 this way you could define a builtin command to be an alias for your custom version of that command. 
+Overriding loop commands or conditonal statements will probably not work well because of how these are 
+handled internally.
 
 There are two predefined aliases: `!elif` is an alias for `!elseif` and `!foreach` is an alias for `!loop`.
 
@@ -71,21 +73,22 @@ echo LayoutProcessor::run_script($script);
 # Because 'Hello' is now defined we can call it directly:
 echo LayoutProcessor::run_layout('Hello','world');
 ```
-## Extending
+
+## Extending the class
 
 In general you would not use the `LayoutProcessor` class directly like in the basic examples above. 
 Instead you would write a subclass and extend it to fit more closely with your own application.
 There are some parts you most likely would want to override.
 
-### Constants
+### Class constants
 
-The following constants can be overridden.
+The following class constants can be overridden.
 
 #### ERR_MSG_INTRO
 
 This is a constant which is used to prefix all error messages. The default value is `'Layout processing error: '`,
 you can change it to include your application name, like `'MyApp ERROR: '` or similar. Note that this constant 
-is used both for `ERR_TEXT` and `ERR_HTML` output (see [error handling](#error-handling), it should **not** 
+is used both for `ERR_TEXT` and `ERR_HTML` output (see [error handling](#error-handling)), it should **not** 
 contain any HTML. It is not used for the message sent to the logger callback.
 
 #### PARAM_PLACEHOLDER
@@ -127,11 +130,17 @@ The optional parts of this array is only used for context for error messages. Yo
 information in this layout if you need to, it is stored in the `static::$layouts` array with the 
 layout name as key.
 
+For layouts which are defined within other layouts 'parent' gets the name of the layout in which it 
+is defined and 'id' gets the line number.
+
 #### get($layout_name)
 
 This method is responsible for finding the layout when it is called. It calls `load()` if it can not find
-the layout in memory. If `load()` fails `get()` must return `false`, otherwise it must return the layout as 
-a string, this will normally be the `content` of the array returned from `load()`.
+the layout in memory. If `load()` fails (returns false) then `get()` also must return `false`, otherwise 
+it must return the layout as a string, this will normally be the `content` of the array returned from `load()`.
+
+You can override this if you want to insert debugging (see example below) or if you want to handle some layouts 
+differently from others. If this method returns false an error will be triggered in `run_script()`.
 
 ### Extension example
 
@@ -155,6 +164,11 @@ class MyApp extends LayoutProcessor {
       'parent' => $layout_item->parent,
       'id' => $layout_item->id);
   }
+  static function get($layout_name) {
+    if(DEBUG_MODE)
+      MyLoggerClass::log('DEBUG',str_repeat('  ',count(static::$scope)).$layout_name);
+    return parent::get($layout_name);
+  }
 }
 
 $error_mode = MyApp::ERR_LOG;
@@ -168,15 +182,21 @@ MyApp::run_layout('_init'); # setup, no output
 echo MyApp::run_layout('_main'); # main application start 
 ```
 
-In this example it is presumed that you have a `MyLoggerClass` with a `log()` method and a
-context object with `get_layout()` and `parent_context()` methods. What exactly a context is 
-depends on the application, it can be based on a file path or from a hierarchy stored in 
-a database.
+In this example it is presumed that you have a `MyLoggerClass` with a static `log()` method 
+and a context object with `get_layout()` and `parent_context()` methods. What exactly a 
+context is depends on the application, for instance it can be based on a file path or from 
+a hierarchy stored in a database. Other criteria can also be used to define a context, like
+if the user is logged in or not, if it is an admin user or not, what time of day it is, the 
+IP address of the user and so on.
 
 The `'_init'` and `'_main'` layouts are also just examples, you can call them anything and 
 it does not have to be two separate startup layouts like this, it could be three or one. 
 The point of having more than one is that it gives you more flexibility when it comes to 
-overriding defaults.
+overriding defaults. For instance `'_init'` could be used to load required PHP libraries 
+and to set global variables and similar, and `'_main'` could be used to define the page 
+template. You would allways use the same `'_init'`, but `'_main'` could be overridden 
+for different types of pages (web/mobile/ajax etc). Both could contain additional layouts 
+which may be overridden for different pages or different parts of the application.
 
 ---
 
@@ -184,14 +204,14 @@ overriding defaults.
 
 ### Comments
 
-Comments are prefixed with a `#` character. They produce no output, they are just used to document 
-the script/template.
+Comments are prefixed with a `#` character. They produce no output, they are just used to 
+document the script/template.
 
     # This is a comment.
       Comments can span multiple lines if the lines are indented.
 
-In some cases you can have single line comments on the same line as other statements, for instance 
-after assignments if you use a semicolon after the expression:
+In some cases you can have single line comments on the same line as other statements, for 
+instance after assignments if you use a semicolon after the expression:
 
     $foo = 'bar';  # this is a valid comment
 
@@ -203,6 +223,7 @@ Big expressions can span multiple lines, just make sure they are indented.
 
     $x = 100
     $y = 200;  # comment allowed here
+    $z = SOME_CONSTANT
     $foo = functionCall()
     $bar = $obj->method()
     $str = "x=$x".
@@ -226,12 +247,21 @@ The following two special cases are also allowed, they execute but any return va
 
     $func()
     $obj->method()
+
+If you need the return values you must assign them to a variable, like this:
+
+    $res = $func()
+    "$res
+    $res = $obj->method()
+    !if $res:
+      DoSomething
+    
     
 ### String output
 
-The `"` prefix is used for string output. The block is output after resolving variables and escape sequences.
-This works very similar to PHP double quoted strings, except you do not have to escape double quotes inside
-the string, and there is no double quote at the end. 
+The `"` prefix is used for string output. The block is output after resolving variables and escape 
+sequences. This works very similar to PHP double quoted strings, except you do not have to escape 
+double quotes inside the string, and there is no double quote at the end. 
 
     "Hello world\n
     "<div style="width:$width">
@@ -241,18 +271,19 @@ the string, and there is no double quote at the end.
     
 ### Literal output
 
-The `'` prefix is used for literal output. The block is output as is, without resolving variables or escape sequences.
+The `'` prefix is used for literal output. The block is output as is, without resolving variables
+or escape sequences. It can contain anything including unescaped `'` characters.
 
-    'This is literal output, $foo is just $foo, variables are not resolved
+    'This is literal output, '$foo' is just '$foo', variables are not resolved
     'The output can span multiple 
       lines if they are indented.
       The indentation is kept in the output.
 
 ### Layout definitions
 
-The `=` prefix is used to define new or to override existing layouts. A layout can be very simple, defined 
-on a singe line, or it can be quite complex and large. There is no defined limit to the size. You can define 
-layouts within other layouts, but they are all global, just like PHP functions.
+The `=` prefix is used to define new or to override existing layouts. A layout can be very simple, 
+defined on a singe line, or it can be quite complex and large. There is no defined limit to the size. 
+You can define layouts within other layouts, but they are all global, just like PHP functions.
 
     =greeting:"Hello!\n
     =alert:!param string unhtml: $msg
@@ -552,7 +583,7 @@ Some examples might clarify:
 - `raw` - No transformation (default)
 - `string` - Resolve variables
 - `expr` - Resolve variables and PHP expressions
-- `unhtml` - Escape HTML characters (`<` becomes `&lt;` an so on)
+- `unhtml` - Escape HTML characters (`<` becomes `&lt;` and so on)
 - `urlify` - Escape characters for use in URL
 - `upper` - Transform to UPPER case letters
 - `lower` - Transform to lower case letters
@@ -608,9 +639,9 @@ The following error mode constants controls output of the error messages:
 
 Use either `ERR_SILENT`, `ERR_TEXT` or `ERR_HTML`. When more than one is used `ERR_SILENT` is ignored,
 if `ERR_HTML` is used `ERR_TEXT` is ignored and HTML messages are output. When none of them are used 
-`ERR_SILENT` is the default and no error message is output, unless `ERR_LOG` is used and the logger returns 
-a message, **or** if `ERR_DIE` is used (see below). Using `ERR_SILENT` combined with `ERR_LOG` is recommended 
-for an application in production, you don't want to show errors to the users.
+`ERR_SILENT` is the default and no error message is output, unless `ERR_LOG` is used **and*' the logger 
+returns a message, **or** if `ERR_DIE` is used (see below). Using `ERR_SILENT` combined with `ERR_LOG` 
+is recommended for an application in production, you don't want to show errors to the users.
 
 The following error mode constants controls program flow when an error is encountered:
 
