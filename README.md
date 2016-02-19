@@ -195,8 +195,8 @@ The point of having more than one is that it gives you more flexibility when it 
 overriding defaults. For instance `'_init'` could be used to load required PHP libraries 
 and to set global variables and similar, and `'_main'` could be used to define the page 
 template. You would allways use the same `'_init'`, but `'_main'` could be overridden 
-for different types of pages (web/mobile/ajax etc). Both could contain additional layouts 
-which may be overridden for different pages or different parts of the application.
+for different types of pages (web/mobile/ajax etc). Both could contain additional calls to
+layouts which may be overridden for different pages or different parts of the application.
 
 ---
 
@@ -248,7 +248,7 @@ The following two special cases are also allowed, they execute but any return va
     $func()
     $obj->method()
 
-If you need the return values you must assign them to a variable, like this:
+If you need the return values you must assign them to variables, like this:
 
     $res = $func()
     "$res
@@ -366,6 +366,13 @@ or a larger block of code, for instance a function call or a class or function d
 
 Variables in the current layout is automatically made available in the `!php` block, but variables
 created inside the block is not automatically exported to the layout.
+
+The PHP code is evaluated within a method of the class, this means you have access to the internal
+functions and variables trough the `static` keyword.
+
+    !php
+      $scope = static::current_scope();
+      $current_layout = $scope['layout_name'];
 
 #### `!if`/`!elseif`/`!else` Conditional statements
 
