@@ -130,8 +130,8 @@ The optional parts of this array is only used for context for error messages. Yo
 information in this layout if you need to, it is stored in the `static::$layouts` array with the 
 layout name as key.
 
-For layouts which are defined within other layouts 'parent' gets the name of the layout in which it 
-is defined and 'id' gets the line number.
+For layouts which are defined within other layouts `parent` gets the name of the layout in which it 
+is defined and `id` gets the line number.
 
 #### get($layout_name)
 
@@ -465,10 +465,11 @@ This command is used to import variables from other variable scopes. Each layout
 scope, which means variables are by default local to the current layout. With `!scope` you can access
 variables which belongs to a different layout.
 
-There are three variants of the `!scope` command. 
+There are four variants of the `!scope` command. 
 
 - `!scope global` Access global variables
 - `!scope caller` Access variables from the calling layout
+- `!scope parent` Access variables from the defining layout
 - `!scope from ...` Access variables from any active layout
 
 Example using `!scope caller`:
