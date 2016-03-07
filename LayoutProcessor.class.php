@@ -26,14 +26,6 @@ Version history:
 
  */
  
- 
-# TMP
-#set_error_handler(function($errno,$errstr,$errfile='',$errline=0,$errcontext=NULL){
-#  if(error_reporting()==0) return true;
-#  if($errstr>'') #LayoutProcessor::error('XXX:'.$errstr.' ('.$errno.')');
-#    echo 'XXX: '.$errstr.' ('.$errno.')';
-#  return true;
-#}); 
 abstract class LayoutProcessor {
   const PARAM_PLACEHOLDER = '$$',
     MAX_RECURSION_DEPTH = 255,
@@ -324,7 +316,7 @@ abstract class LayoutProcessor {
   }
   static function assignment($stmt) {
     ##### NOT supported:
-    # $var = & ...     !!workaround: $var = $dummy = & ...
+    # $var = & ...  
     # $$varname = ...  Fails because $$ is replaced with $param in run_script()
     # ${$varname} = ...!!workaround: $dummy = ${$varname} = ...
     preg_match('/^[a-z_][a-z0-9_]*/i',$stmt,$m);
@@ -337,21 +329,10 @@ abstract class LayoutProcessor {
     if($status != 'ok')
       return static::error($return_value); 
     $res = $return_value;
-    #$res = static::eval_expr("\$$stmt");
-    
     # debug: (fail) means return value is different from value stored in variable
     #echo '[$res == '.print_r($res,true).'  m0='.$m[0].' scope: '.print_r($scope['vars'][ $m[0] ],true).
     #  ' '.(!is_null($scope['vars'][ $m[0] ]) && $scope['vars'][ $m[0] ] === $res ? '(ok)':'(fail)').']'."\n";
     #
-    /*
-    $e = error_get_last();
-    if($e && $e['message'] > '') {
-      $severity = static::PHP_error_code_name($e['type']);
-      @trigger_error(''); #reset
-      return static::error('PHP '.$severity.' in assignment'.
-        ($e['line'] != 1 ? ' line '.$e['line'] : '').': '.$e['message']);
-    }
-    */
     return '';
   }
   static function markup($stmt) {
@@ -362,7 +343,6 @@ abstract class LayoutProcessor {
     if($status != 'ok')
       return static::error($return_value); 
     return $return_value;
-    #return static::eval_string($stmt);
   }
   static function literal($stmt) {
     return $stmt;
@@ -407,18 +387,6 @@ abstract class LayoutProcessor {
         list($status,$return_value,$output) = static::eval_php('!php',$param);
         if($status != 'ok')
           return static::error($return_value); # $output is ignored
-        /*
-        $e = error_get_last();
-        if($e && $e['message'] > '') {
-          $severity = static::PHP_error_code_name($e['type']);
-          @trigger_error(''); #reset
-          return static::error($severity.' in !php line '.$e['line'].': '.$e['message']);
-        } 
-        elseif(is_a($output,'Exception')) {
-          $e = $output;
-          $code = $e->getCode();
-          return static::error(get_class($e).' in !php line '.$e->getLine().': '.$e->getMessage().($code?' ('.$code.')':''));
-        } */
         if($return_value === false) # cancel output
           return '';
         elseif(is_null($return_value))
@@ -431,16 +399,7 @@ abstract class LayoutProcessor {
         list($status,$return_value,$output) = static::eval_expr('!if expression',$expr);
         if($status != 'ok')
           return static::error($return_value); 
-        $expr_result = $return_value; # static::eval_expr($expr);
-        /*
-        $e = error_get_last();
-        if($e && $e['message'] > '') {
-          $severity = static::PHP_error_code_name($e['type']);
-          @trigger_error(''); #reset
-          return static::error('PHP '.$severity.' in !if expression'.
-            ($e['line'] != 1 ? ' line '.$e['line'] : '').': '.$e['message']);
-        }       
-        */
+        $expr_result = $return_value; 
         if($expr_result) {
           $scope['if_state'] = true;
           return static::run_script(Indentation::unindent("\n".$code),'','[!if block]');
@@ -461,14 +420,6 @@ abstract class LayoutProcessor {
         if($status != 'ok')
           return static::error($return_value); 
         $expr_result = $return_value; 
-        /*$expr_result = static::eval_expr($expr);
-        $e = error_get_last();
-        if($e && $e['message'] > '') {
-          $severity = static::PHP_error_code_name($e['type']);
-          @trigger_error(''); #reset
-          return static::error('PHP '.$severity.' in !elseif expression'.
-            ($e['line'] != 1 ? ' line '.$e['line'] : '').': '.$e['message']);
-        }*/
         if($expr_result) {
           $scope['if_state'] = true;
           return static::run_script(Indentation::unindent("\n".$code),'','[!elseif block]');
@@ -705,7 +656,6 @@ abstract class LayoutProcessor {
             list($status,$return_value,$output) = static::eval_php('!param php',$param,true);
             if($status != 'ok')
               return array(false,$return_value); # $output is ignored
-            #list($return_value,$output) = static::eval_php($param);
             if($return_value === false) # cancel 
               $param = '';
             elseif(is_null($return_value))
@@ -780,27 +730,9 @@ abstract class LayoutProcessor {
     return array(true,$param);
   }
   static function eval_string($__context,$__stmt,$__parent=false) {
-    #if($__parent && count(self::$scope) > 1) $__scope = & static::parent_scope();
-    #else $__scope = & static::current_scope();
-    #extract($__scope['vars'],EXTR_SKIP|EXTR_REFS);
-    #$__stmt = addcslashes($__stmt,'"');
-    #@trigger_error('');
-    #$res = @eval('return "'.$__stmt.'";');    
-    #$e = error_get_last();
-    #if($e && $e['message'] > '') {
-    #  @trigger_error('');
-    #  return static::error($e['message']);
-    #}
-    #return $res;
     return static::eval_php($__context,'return "'.addcslashes($__stmt,'"').'"',$__parent);
   }
   static function eval_expr($__context,$__expr,$__parent=false) {
-    #if($__parent && count(self::$scope) > 1) $__scope = & static::parent_scope();
-    #else $__scope = & static::current_scope();
-    #extract($__scope['vars'],EXTR_SKIP|EXTR_REFS);
-    #@trigger_error('');
-    #$res = @eval("return $__code;");
-    #return $res;
     return static::eval_php($__context,"return $__expr",$__parent);
   }
   static function eval_php($__context,$__code,$__parent=false) {
