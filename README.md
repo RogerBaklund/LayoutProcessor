@@ -8,7 +8,7 @@ The first character of a line is used to determine what kind of block it is, thi
 is called the prefix. If it is a space (or TAB) character, it is an indented line and it belongs 
 to the same block as the previous line. Blank lines are ignored.
 
-A set of prefix characters has builtin support, but you can override these and/or add your own prefixes.
+A set of prefix characters has builtin support, you can override these and/or add your own prefixes.
 
 The main building blocks of a script is the "layout", which is similar to procedures in other languages.
 You define layous and call them by their name, optionally with parameters. Layout names may contain spaces 
@@ -105,7 +105,7 @@ calling A.
 
 ### Methods
 
-The following methods can be overridden.
+Most methods can be overridden, but the following methods are the most usefull to override.
 
 #### load($layout_name)
 
@@ -127,8 +127,8 @@ following keys:
 - `id` - DB identifier, numeric or string (optional)
 
 The optional parts of this array is only used for context for error messages. You can add more meta 
-information in this layout if you need to, it is stored in the `static::$layouts` array with the 
-layout name as key.
+information in this layout if you need to, it is stored in the `static::$layouts` array with 
+`$layout_name` as key.
 
 For layouts which are defined within other layouts `parent` gets the name of the layout in which it 
 is defined and `id` gets the line number.
@@ -364,11 +364,11 @@ or a larger block of code, for instance a function call or a class or function d
         }
       }
 
-Variables in the current layout is automatically made available in the `!php` block, but variables
-created inside the block is not automatically exported to the layout.
+Variables in the current layout are automatically made available in the `!php` block, but 
+a variable created inside the block is not automatically exported to the layout.
 
-The PHP code is evaluated within a method of the class, this means you have access to the internal
-functions and variables trough the `static` keyword.
+The PHP code is evaluated within a method of the class, this means you have access to the 
+internal functions and variables trough the `static` keyword.
 
     !php
       $scope = static::current_scope();
@@ -377,34 +377,37 @@ functions and variables trough the `static` keyword.
 #### `!if`/`!elseif`/`!else` Conditional statements
 
 These commands are used for conditional execution. `!elseif` and `!else` can only be used immediatly after 
-an `!if` or an `!elseif`. You can only have one `!else`. You can have nested `!if` inside another `!if`. 
-How deep you can nest is limited only by `MAX_RECURSION_DEPTH` (default 255). Unlike PHP the expression 
-to evaluate does not need to be in parentheses, but it must be a valid PHP expression. 
+an `!if` or an `!elseif`. You can have multiple `!elseif` but only one `!else`. You can have nested `!if` 
+inside another `!if`. How deep you can nest is limited only by `MAX_RECURSION_DEPTH` (default 255). Unlike
+PHP the expression to evaluate does not need to be in parentheses, but it must be a valid PHP expression. 
 Long expressions can be broken on multiple lines, but they must of course be indented. 
 
 After the expression a colon and a new line is required. Even for short single statement blocks you can 
 **not** put the statement on the same line as the condition. Indentation is (as always) also required.
 
-The `!else` statement has no condition, it allows a statement on the same line, and the colon is optional. 
-See examples of this below.
+The `!else` statement has no condition, the provided code block is executed only if the `!if` conditon 
+and all `!elseif` conditions are false. 
 
     !if $foo == 'bar':
       FooBar
       
     !if $obj->method():
       "Ok!
-    !else: "Failed!
+    !else: 
+      "Failed!
     
     !if $height > 400:
       !if $width > 800:
         HighVeryWideOutput
       !elseif $width > 400:
         HighWideOutput
-      !else: HighNarrowOutput
+      !else: 
+        HighNarrowOutput
     !else:
       !if $width > 400:
         WideOutput
-      !else SmallOutput
+      !else:
+        SmallOutput
 
 **NOTE:** `!elif` is defined as an alias for `!elseif`. You can use either, but if there are errors the
 error messages will always report it as error in `!elseif`.
@@ -561,9 +564,6 @@ Some examples might clarify:
     # Variables are resolved and stored in local variable $str
     !param string:$str
     
-    # Resolve variables and transform to upper case letters
-    !param string UPPER:$str
-    
     # Split parameter on colon, $_param is an array
     !param colon
     
@@ -591,12 +591,8 @@ Some examples might clarify:
 - `raw` - No transformation (default)
 - `string` - Resolve variables
 - `expr` - Resolve variables and PHP expressions
-- `unhtml` - Escape HTML characters (`<` becomes `&lt;` and so on)
-- `urlify` - Escape characters for use in URL
-- `upper` - Transform to UPPER case letters
-- `lower` - Transform to lower case letters
-- `ucfirst` - Transform first letter to UPPER case 
-- `ucwords` - Transform first letter of each word to UPPER case 
+- `php` - Execute the parameter as PHP code
+- `layout` - Execute the parameter as a layout
 
 You can add custom transformations using the `add_transform($name,$callback)` method.
 
@@ -643,11 +639,12 @@ The following error mode constants controls output of the error messages:
 - `ERR_SILENT` No error message is output unless the logger returns a message
 - `ERR_TEXT` Error message is output as plain text (default)
 - `ERR_HTML` Error message is output as HTML (in a `<p>` element)
-- `ERR_LOG` Error messages are sent to a logger callback
+- `ERR_LOG` Error message is sent to a logger callback
+- `ERR_NO_LOG` Error message is **not** sent to a logger callback (default)
 
 Use either `ERR_SILENT`, `ERR_TEXT` or `ERR_HTML`. When more than one is used `ERR_SILENT` is ignored,
 if `ERR_HTML` is used `ERR_TEXT` is ignored and HTML messages are output. When none of them are used 
-`ERR_SILENT` is the default and no error message is output, unless `ERR_LOG` is used **and*' the logger 
+`ERR_SILENT` is the default and no error message is output, unless `ERR_LOG` is used **and** the logger 
 returns a message, **or** if `ERR_DIE` is used (see below). Using `ERR_SILENT` combined with `ERR_LOG` 
 is recommended for an application in production, you don't want to show errors to the users.
 
@@ -661,13 +658,14 @@ The following error mode constants controls program flow when an error is encoun
 
 Use one of `ERR_CONTINUE`, `ERR_RESUME`, `ERR_EXIT`, `ERR_CANCEL`, `ERR_DIE` or none of them. 
 If they are combined the most severe action will be taken, for instance if `ERR_DIE` is enabled 
-it will die, if any of the others are enbled `ERR_CONTINUE` is ignored, and so on. 
+it will die, if any of the others are enabled `ERR_CONTINUE` is ignored, and so on. 
 
 `ERR_DIE` outputs a text error message regardless of `ERR_TEXT` or `ERR_HTML` settings. 
 It also exits the PHP script. It is usually better to use  `ERR_CANCEL`, which returns control 
-to the script which called the `run_script()` method. It can return the error message if `ERR_TEXT`
-or `ERR_HTML` is enabled, but you can also check the `LayoutProcessor::$error_exit` static variable,
-it will contain the name of the layout which failed. It will be `false` if there was no error.
+to the PHP script which called the `run_script()` or `run_layout()` method. It can return the
+error message if `ERR_TEXT` or `ERR_HTML` is enabled, but you can also check the 
+`LayoutProcessor::$error_exit` static variable, it will contain the name of the layout which failed. 
+It will be `false` if there was no error.
 
 When using `ERR_LOG` you must also define a callback for the logger using the `set_logger($callback)` method.
 The callback expects two parameters, the context for the error and the message.
