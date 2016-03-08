@@ -23,6 +23,7 @@ Version history:
 - !return <num>|to <layout>|with <variables>
 - !scope static
 - $scope['separator']
+- !param blocks
 
  */
  
@@ -122,7 +123,7 @@ abstract class LayoutProcessor {
     $text_mode = static::$error_mode & self::ERR_TEXT;
     if(static::$error_mode & (self::ERR_EXIT|self::ERR_CANCEL|self::ERR_RESUME))
       self::$error_exit = $scope['layout_name'];
-    $context = #'(mode='.static::$error_mode.') '.
+    $context = 
       (self::$context ? self::$context.' in ' : '').
       (($scope['layout_name']>'' && 
         $scope['layout_name'].' ' != substr(self::$context,0,strlen($scope['layout_name']) + 1)) 
@@ -171,11 +172,11 @@ abstract class LayoutProcessor {
   static function & find_scope($layout_name='',$cmd='') {
     $i = 1;
     $null = NULL;
-    while($i<count(self::$scope) && 
-      (!$layout_name||self::$scope[count(self::$scope)-$i]['layout_name'] != $layout_name) &&
-      (!$cmd||self::$scope[count(self::$scope)-$i]['cmd'] != $cmd)) $i++;
-    if(($layout_name && self::$scope[count(self::$scope)-$i]['layout_name'] != $layout_name) ||
-       ($cmd && self::$scope[count(self::$scope)-$i]['cmd'] != $cmd)) return $null;
+    while($i < count(self::$scope) 
+      && (!$layout_name||self::$scope[count(self::$scope)-$i]['layout_name'] != $layout_name) 
+      && (!$cmd||self::$scope[count(self::$scope)-$i]['cmd'] != $cmd)) $i++;
+    if(  ($layout_name && self::$scope[count(self::$scope)-$i]['layout_name'] != $layout_name) 
+      || ($cmd && self::$scope[count(self::$scope)-$i]['cmd'] != $cmd)) return $null;
     return self::$scope[count(self::$scope)-$i];
   }
   static function run_layout($layout_name,$param='') {
@@ -324,15 +325,9 @@ abstract class LayoutProcessor {
     $scope = & static::current_scope();
     if(!isset($scope['vars'][ $m[0] ]))
       $scope['vars'][ $m[0] ] = NULL;
-    #echo '[*assignment: $'.$stmt.']'."\n";
     list($status,$return_value,$output) = static::eval_expr('assignment',"\$$stmt");
     if($status != 'ok')
       return static::error($return_value); 
-    $res = $return_value;
-    # debug: (fail) means return value is different from value stored in variable
-    #echo '[$res == '.print_r($res,true).'  m0='.$m[0].' scope: '.print_r($scope['vars'][ $m[0] ],true).
-    #  ' '.(!is_null($scope['vars'][ $m[0] ]) && $scope['vars'][ $m[0] ] === $res ? '(ok)':'(fail)').']'."\n";
-    #
     return '';
   }
   static function markup($stmt) {
@@ -450,7 +445,6 @@ abstract class LayoutProcessor {
         if($status != 'ok')
           return static::error($return_value); 
         $arr = $return_value;
-        #$arr = static::eval_expr($expr);
         $varname = isset($m[4]) ? $m[4] : $m[2];
         $keyname = isset($m[4]) ? $m[2] : NULL;
         if(!is_array($arr) && !($arr instanceof Traversable)) 
@@ -509,7 +503,7 @@ abstract class LayoutProcessor {
         $type = strtolower($type);
         switch($type) {
           case 'from':
-            list($layout_name,$vars) = self::split_on_optional_char($vars); # !! will not work with spaces in layout name
+            list($layout_name,$vars) = array_map('trim',explode(':',$vars,2));              
             if(!$vars) 
               return static::error('Bad syntax for !scope, variable name(s) required');
             $fscope = & static::find_scope($layout_name);
@@ -644,7 +638,7 @@ abstract class LayoutProcessor {
             list($status,$return_value,$output) = static::eval_string('!param string',$param,true);
             if($status != 'ok')
               return array(false,$return_value); 
-            $param = $return_value; # static::eval_string($param,true); 
+            $param = $return_value; 
             break;
           case 'expr': 
             list($status,$return_value,$output) = static::eval_expr('!param expr',$param,true);
@@ -671,7 +665,6 @@ abstract class LayoutProcessor {
       }
     }
     $sep = false; 
-    # !! TODO: sep_type='blocks'
     if($sep_type && isset($separator_types[$sep_type]))
       $sep = $separator_types[$sep_type];
     if($sep) {
@@ -754,7 +747,8 @@ abstract class LayoutProcessor {
     if($e && $e['message'] > '') {
       $code_name = static::PHP_error_code_name($e['type']);
       @trigger_error(''); #reset
-      return array('error','PHP '.$code_name.' in '.$__context.' line '.$e['line'].': '.$e['message'],ob_get_clean());
+      return array('error','PHP '.$code_name.' in '.$__context.
+        ($e['line'] != 1 ? ' line '.$e['line'] : '').': '.$e['message'],ob_get_clean());
     }     
     return array('ok',$res,ob_get_clean());
   }
