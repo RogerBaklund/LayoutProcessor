@@ -1,0 +1,300 @@
+# script.demo.txt
+# NOTE: 
+    This script mix different types of code and content, this is not how you would 
+    write an application. This is a demo, it is written this way to demonstrate 
+    different features and hopefully to make it easier to see what is going on. 
+    
+!if PHP_SAPI == 'cli':
+  "Run in browser!
+  !return
+
+<!doctype html>
+
+$width = '500px'; 
+
+$ErrorMessage = false
+
+# utility for constructing statements from strings
+=do:!param string
+  !php static::run_script($_param);
+
+#### Language settings
+
+# supported languages
+$valid_languages = array(
+  'en'=>'english',
+  'no'=>'norwegian');
+$default_language = 'en'
+
+# Get and validate language selected by user
+$lang = isset($_GET['lang']) ? $_GET['lang'] : $default_language;
+!if !in_array($lang,array_keys($valid_languages)):
+  $lang = $default_language
+$lang_label = $valid_languages[$lang]
+
+# Load language file
+!if file_exists("lang-$lang_label".SCRIPT_EXTENSION):
+  # Reading language specific content
+  do:lang-$lang_label
+!else:
+  # Can not read language file, can not display error here
+  $ErrorMessage = "lang-$lang_label".SCRIPT_EXTENSION.' was not found'
+  lang-english
+    
+=LanguagePicker:
+  !scope caller $lang,$valid_languages
+  <span style="padding-left:3em;">Language: </span>
+  <select onchange="location.href='?lang='+this.value">
+  !loop $valid_languages as $lang_code=>$lang_label:
+    $sel = ($lang == $lang_code) ? ' selected="selected"' : ''
+    "<option value="$lang_code"$sel>$lang_label</option>
+  </select>
+
+#### CSS
+  
+$nav_style = '
+  font-size:120%;
+  margin:1em; padding:.5em;
+  border:solid 1px black;
+  border-radius:5px;
+  display:inline-block;
+  '
+=Demo_style:
+  !scope caller $width
+  " .demo {
+      border: solid 1px silver;
+      border-radius:5px;
+      width:$width;
+      height:110px;
+      padding:5px;
+      margin:0;
+    }
+# This CSS example shows three different ways to send some variable into a layout: 
+  We call it with $width parameter, the $nav_style (defined above) is picked from 
+  the caller scope, and Demo_style is defined as a separate layout above.
+=CSS:!param string:$width
+  !scope caller $nav_style
+  # !! The space between { and $nav_style below is required, otherwise PHP removes the {}
+  " p {width:$width;}
+    p.intro {font-weight:bold;}
+    .nav { $nav_style }
+    .demo1 {color:green;}
+    .demo2, .demo_viewer {color:blue;}
+    .demo3 {color:purple;}
+    .demo4 {color:red;}
+  Demo_style
+
+#### 4 demo boxes defined here
+
+=demo1:
+  # defining a placeholder
+  =Greeting:"Hello world
+  # using it
+  <div class="demo demo1">
+  Greeting
+  </div>
+  
+=demo2:
+  # defining a basic template
+  =MyTemplate:"<div class="demo demo2">$_param</div>\n
+  # calling template with parameter
+  MyTemplate:Hello world
+
+=demo3:
+  # defining a template with resolved parameter
+  =MyTemplate: !param $msg:string
+    "<div class="demo demo3">$msg</div>\n
+  # defining a variable
+  $who = 'world'
+  # calling the template using the variable
+  MyTemplate:Hello $who  
+
+=demo4:
+  # defining a template, fetching variable from caller
+  =MyTemplate: !scope caller $msg
+    "<div class="demo demo4">$msg</div>\n
+  # defining a variable
+  $msg = 'Hello world'
+  # calling the template 
+  MyTemplate 
+  
+#### Start of HTML output
+
+<html><head>
+
+<meta charset="utf-8">  
+
+<title>
+Title
+</title>
+
+<style>
+CSS:$width
+</style>
+
+</head>
+
+# For making internal links, lang parameter is set automatically
+=Link:!param string colon:$src,$label
+  !scope from script:$lang
+  "<a href="?lang=$lang&amp;src=$src">$label</a>
+
+# The 'override_demo' layout is used to override the demo1-demo4 layouts defined 
+  above, this is done for demonstration purposes. In general we can just redefine 
+  the layout with = prefix. In this case we need to store the content of the demo 
+  layouts in string variables, then redefine them so that they will display these 
+  strings in a <pre>. Explaining this code in detail is beyond the scope of this 
+  demo, but $$ is a special placeholder for the input, in this case it is replaced 
+  with 1, 2, 3 and 4.  
+=override_demo: !scope caller $demo$$_script
+  $demo$$_script = htmlentities(self::$layouts['demo$$']['content']);
+  =demo$$:!scope caller $demo$$_script
+    "<pre class="demo demo$$">$demo$$_script</pre>
+
+=Content:
+  # Content_intro, Example_explanation and Example_invitation 
+    are defined in the lang-*.demo.txt files
+  !if $_param == 'show_src':
+    # override the demos, make them display the source
+    override_demo:1
+    override_demo:2
+    override_demo:3 
+    override_demo:4
+  Content_intro
+  <div>
+  demo1
+  demo2
+  demo3
+  demo4
+  </div>
+  !if $_param == 'show_src':
+    Example_explanation
+  !else:
+    Example_invitation
+    
+=View source:
+  # This is the application part, showing different sources depending on URL parameter 'src'
+    This layout has a space in the name for no particular reason, just showing that it works
+    
+  # This input is whitelisted, we check for specific values, no need for extra validation
+  $src = $_GET['src']
+  
+  # Simple navigation to take the user back to start or to the next relevant page
+  =Navigation:!param raw:$target
+    !scope from script:
+      $lang, $back_to_start, $link_separator,
+      $show_PHP_demo_source, $show_demo_viewer_source
+    $links = array(
+      'demo_source'=>$show_demo_viewer_source,
+      'php_source'=>$show_PHP_demo_source
+      )
+    <div class="nav">
+    "<a href="?lang=$lang">$back_to_start</a>
+    !if $target:
+      "$link_separator
+      Link:$target:$links[$target]
+    </div>
+  
+  !if $src == 'examples':
+    # This is an alternative to overriding a layout: send in a parameter and use conditonal 
+      statements to have different behaviour (see Content definition above).
+    Content:show_src
+    Content_demo_source_invitation
+    Navigation:demo_source
+
+  !elseif $src == 'demo_source':
+    Demo_source_intro
+    # reading the script from the internal $layouts array
+    $script = htmlentities(self::$layouts['script']['content']);
+    "<pre class="demo_viewer">$script</pre>
+    Demo_source_description
+    Navigation:php_source
+    
+  !elseif $src == 'footer':
+    $footer_file = 'footer'.SCRIPT_EXTENSION;
+    Footer_intro:$footer_file
+    # reading footer from file, it is not yet loaded
+    $footer = htmlentities(file_get_contents($footer_file));    
+    "<pre class="demo_viewer">$footer</pre>
+    Footer_description
+    Navigation:demo_source
+    
+  !elseif $src == 'lang':
+    !scope from script: $valid_languages,$lang
+    $lang_label = $valid_languages[$lang]
+    $lang_source = self::$layouts['lang-'.$lang_label]['content']
+    # Language file is in UTF-8 format, if internal encoding is 
+      not UTF-8 it must be decoded before using htmlentities()
+    !if mb_internal_encoding() != 'UTF-8':
+      $lang_source = utf8_decode($lang_source);
+    $lang_source = htmlentities($lang_source)
+    Language_intro
+    "<pre class="demo_viewer">$lang_source</pre>
+    Language_description
+    Navigation:demo_source
+  
+  !elseif $src == 'php_source':
+    PHP_source_intro
+    $php_source = highlight_file('demo.php',true);
+    "$php_source
+    PHP_source_description
+    Navigation:demo_source
+    
+  !elseif $src == 'log':
+    # show the tail of the log file
+    $size = 2500
+    $fh = file_exists(LOGFILE) ? fopen(LOGFILE,'r') : false
+    !if $fh:
+      $res = fseek($fh,-$size,SEEK_END)
+      !if $res == -1:
+        # smaller than $size, read entire file
+        $log_content = htmlentities(file_get_contents(LOGFILE))
+      !else:
+        $ignore = fgets($fh); # ignore first (incomplete) line
+        $log_content = htmlentities(fread($fh,$size))
+      !php fclose($fh);
+      "<pre class="demo_viewer">$log_content</pre>
+      Logfile_description
+      !if !DEBUG_MODE:
+        Warning:DEBUG_MODE is disabled, messages might be old
+    !elseif DEBUG_MODE:
+      Warning: DEBUG_MODE is enabled but the log file was not found!
+    !else:
+      Warning: Log file not found, enable DEBUG_MODE
+    Navigation:php_source
+  !else:
+    Warning: Unexpected src parameter
+    Navigation
+
+=Warning:
+  !param string: $msg
+  "<p style="color:red">$msg</p>
+
+<body>
+<h1>
+Title
+</h1>
+<p class="intro">
+Intro
+</p>
+
+!if $ErrorMessage:
+  Warning:$ErrorMessage
+
+!if isset($_GET['src']):
+  View source
+!else:
+  Content
+  <div class="nav">
+  Link:examples:$show_template_definitions
+  LanguagePicker
+  </div>
+
+# The footer is defined in a separate file
+footer:black|silver;
+  font-family:Verdana,sans-serif;
+  width:$width;
+  border-radius:5px;
+
+</body>
+</html>

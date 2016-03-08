@@ -1,0 +1,91 @@
+# lang-norwegian.demo.txt - norwegian language file
+# ! make sure this file is encoded as utf8, it contains non-ascii characters
+
+# These variables are returned to the main script:
+!scope from script: $back_to_start, $show_PHP_demo_source, 
+  $show_demo_viewer_source, $show_template_definitions, $link_separator
+
+# link labels
+$back_to_start = 'tilbake til start'
+$show_template_definitions = 'vis template-definisjonene'
+$show_demo_viewer_source = 'vis kildekode for eksempel-viseren'
+$show_PHP_demo_source = 'vis PHP demo kildekode'
+
+$link_separator = ' eller '
+
+=Title:"Demo
+=Intro:"Dette er en demo av <code>LayoutProcessor</code> template-prosesseringsmotor.
+
+=Content_intro:
+    <p>Nedenfor vises fire eksempler på hvordan man kan vise en enkel melding i en <code>&lt;div&gt;</code>. 
+       De gjør alle den samme tingen, men på forskjellige måter.</p>
+=Content_demo_source_invitation:
+    <p>Dette er bare grunnleggende eksempler, for mer avanserte eksempler kan du se
+       kildekoden for denne eksempel-viseren ved å klikke lenken nedenfor.</p>
+     
+=Example_invitation:
+    <p>Klikk linken nedenfor for å se template-definisjonene.</p>
+=Example_explanation:
+    <p>Det første eksempelet bruker et layout for å lage en plassholder, det andre
+       bruker et layout for å lage en template som tar meldingen som input-parameter,
+       og det tredje lager en template som kan lese variabler, definerer en variabel 
+       og bruker denne i parameteret som sendes til template'en, og den siste henter 
+       variabelen fra konteksten der template'en brukes.</p>
+
+=Demo_source_intro:
+    <p>Dette er kildekoden for eksempel-viseren (script.demo.txt).
+       Det meste skulle være greit å forstå for en utvkler, les
+       <a href="https://github.com/RogerBaklund/LayoutProcessor" target="_blank">GitHub siden</a>
+       for detaljer om syntaksen.
+    </p>
+=Demo_source_description:
+    <p>Dette er teknsik sett et layout som heter 'script', det er den ytre template'en
+       for nettsiden og i dette tilfellet implementerer den hele "applikasjonen", bare
+       <a href="?lang=no&amp;src=lang">språkfiler</a> og 
+       <a href="?lang=no&amp;src=footer">footer</a> er definert i separate filer 
+       for å vise hvordan det fungerer. 
+       I et virkelig prosjekt vil man ha flere ting i separate filer og antagelig også
+       hente ting fra en database.</p>
+    <p>Hvis du vil se hvordan dette er implementert i PHP kan du vise 
+       PHP demo kildekode ved å klikke linken nedenfor.</p>
+
+=PHP_source_intro:
+    <p>Dette er <code>demo.php</code>, scriptet som laster og kjører 
+      <a href="?lang=no&amp;src=demo_source">eksempel-viseren</a>.</p>
+=PHP_source_description:
+    <p>Du behøver ikke alt dette for å kjøre denne enkle demo'en, men det fungerer som
+       et bra utgangspunkt for en applikasjon basert på <code>LayoutProcessor</code>.</p>
+    <p>Den viktigste biten er den statiske <code>load()</code> metoden. Denne metoden 
+       kalles når et udefinert layout brukes. <code>load()</code> må returnere false
+       hvis layout'et ikke blir funnet. Hvis det finnes returneres det i en liten assosiativ
+       array med layout'et som en streng og med noe ekstra meta data som i utgangspunktet
+       bare brukes i feilmeldinger.</p> 
+    <p><code>get()</code> metoden brukes bare for debug meldinger i dette tilfellet, den 
+       skriver navnet på hvert layous etterhvert som de blir kallt, med innrykk tilsvarende
+       størrelsen på det interne scope-bufferet for å visualisere strukturen på koden som kjøres. 
+       Se <a href="?lang=no&src=log">demo.log</a> filen.</p>
+    <p>Etter at klassen er definert blir feilhåntering og logging konfigurert. Du behøver ikke 
+       å bruke dette, du kunne bruke standard innstillinger som er <code>ERR_TEXT</code>, 
+       ingen logg. Feilmeldinger ville være synlige men ikke formatert for HTML.</p>
+    <p>Deretter kjøres <code>Demo::run_layout('script')</code>, og resutatet blir sendt til 
+       netteseren. Fordi layout'et <code>'script'</code> ikke er definert på dette tidspunktet
+       blir <code>load()</code> metoden kjørt, denne henter og returnerer innholdet av filen 
+       <code>script.demo.txt</code>.</p>
+    <p>Til slutt blir tidsforbruket skrevet til <a href="?lang=no&src=log">demo.log</a> filen
+       dersom debugging er aktivert.</p>
+
+=Language_intro:
+  <p>Dette er språkfila, alle tekster som skal vises er lagret her, noen som variabler og noen
+     som layouts med HTML paragrafer.</p>
+=Language_description:
+  <p>Dette er bare et eksempel på hvordan det kan gjøres, ofte har man innholdet i en database
+     og man bruker da andre mekanismer for å finne innhold for riktig språk.</p>
+   
+=Logfile_description:     
+  <p>Dette er slutten av fila <code>demo.log</code>, bare noen få av de siste sidevisningene vises.</p>
+       
+=Footer_intro:!param string: $footer_file
+    "<p>Dette er <code>$footer_file</code> filen:</p>
+=Footer_description:
+    <p>Det vil vanligvis være bedre å sette CSS regler for footer klassen, å sende inn
+       parametre på denne måten er bare gjort for demonstrasjonens skyld.</p>

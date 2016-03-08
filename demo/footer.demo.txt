@@ -1,0 +1,13 @@
+# can take one or two colors as parameter, separated by | (pipe character)
+# you can also append additional CSS rules, separated by ;
+
+!param string pipe(0-2): $fg, $bg
+
+$style = 'padding:1em;';
+$style .= $fg?"color:$fg;":'';
+$style .= $bg?"background:$bg;":'';
+
+"<div class="footer" style="$style">
+  Open source template processing engine for PHP, LGPL licence, source and technical info at 
+  <a href="https://github.com/RogerBaklund/LayoutProcessor">GitHub page</a>
+</div>

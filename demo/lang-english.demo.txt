@@ -1,0 +1,90 @@
+# lang-english.demo.txt - english language file
+
+# These variables are returned to the main script:
+!scope from script: $back_to_start, $show_PHP_demo_source, 
+  $show_demo_viewer_source, $show_template_definitions, $link_separator
+
+# link labels
+$back_to_start = 'back to start'
+$show_template_definitions = 'show template definitions'
+$show_demo_viewer_source = 'show demo viewer source'
+$show_PHP_demo_source = 'show PHP demo source'
+
+$link_separator = ' or '
+
+=Title:"Demo
+=Intro:"This is a demo of the <code>LayoutProcessor</code> template processing engine.
+
+=Content_intro:
+    <p>Below are four examples showing how to output a simple message in a <code>&lt;div&gt;</code>. 
+       While they do the same thing, they use four different approaches.</p>
+=Content_demo_source_invitation:
+    <p>These are just basic examples, for more advanced examples you can view the
+       source code for this demo viewer by clicking the link below.</p>
+     
+=Example_invitation:
+    <p>Click the link below to view the template definitions.</p>
+=Example_explanation:
+    <p>The first example use a layout to make a placeholder for the message, the second
+       use a layout to make a template which takes the message as input parameter,
+       and the third make a template capable of resolving variables and then defines 
+       a variable and use the variable in the parameter sent to the template, and the 
+       last one fetch the variable from the context where the template is used.</p>
+
+=Demo_source_intro:
+    <p>This is the source for the demo viewer script (script.demo.txt). 
+       Most parts should be easy to understand for a developer, for details
+       about the syntax read the  
+       <a href="https://github.com/RogerBaklund/LayoutProcessor" target="_blank">GitHub page</a>.
+    </p>
+=Demo_source_description:
+    <p>This is technically a layout named 'script', it is the outer template for the web
+       page and in this case it implements the complete "application", only 
+       <a href="?lang=en&amp;src=lang">language</a> and 
+       <a href="?lang=en&amp;src=footer">footer</a> 
+       is defined in separate files just to show how it works. 
+       In a real project you would have more things in separate files and probably also
+       fetch things from a database.</p>
+    <p>If you want to see how this is implemented in PHP you can view the 
+       PHP demo source by clicking the link below.</p>
+
+=PHP_source_intro:
+    <p>This is <code>demo.php</code>, the script that loads and runs the 
+      <a href="?src=demo_source">demo viewer</a> script.</p>       
+=PHP_source_description:
+    <p>You don't need all this to run this simple demo, but it serves as a good starting 
+       point for an application based on the <code>LayoutProcessor</code> class.</p>
+    <p>The most important part is the static <code>load()</code> method. This method is 
+       called when a undefined layout is called. <code>load()</code> must return false 
+       if the layout is not found. If it is found it is returned in a small associative 
+       array with the layout as a string and some additional meta data which by default
+       is only used for error messages.</p>
+    <p>The <code>get()</code> method is only used for debug messages in this case, it 
+       outputs the name of layous as they are called, indented according to the current 
+       scope size to make it easier to see the structure of the executed code. See the 
+       <a href="?lang=en&src=log">demo.log</a> file.</p>
+    <p>After the class is defined, error handling and logging is configured. You are not 
+       required to use this, you could use the defaults which is <code>ERR_TEXT</code>, 
+       no logging. Error messages would be visible but not formatted for HTML.</p>
+    <p>Then <code>Demo::run_layout('script')</code> is executed, and the result is output. 
+       Since the layout <code>'script'</code> is not defined at this stage, the 
+       <code>load()</code> method is executed, fetching and returning the 
+       <code>script.demo.txt</code> file.</p>
+    <p>Finally, if debugging is enabled the time spent is written to the 
+       <a href="?lang=en&src=log">demo.log</a> file.</p>
+
+=Language_intro:
+  <p>This is the language file, all texts are defined here, some as variables and some
+     as layouts with HTML paragraphs.</p>
+=Language_description:
+  <p>This is just one example of how to do it, often the content is from a database
+     and you must use a different approach to find the content for the correct language.</p>
+
+=Logfile_description:     
+  <p>This is the end of the file <code>demo.log</code>, showing only the last few requests.</p>
+  
+=Footer_intro:!param string: $footer_file
+    "<p>This is the <code>$footer_file</code> file:</p>
+=Footer_description:
+    <p>It would usually be better to set CSS rules on the footer class, sending in parameters
+       this way is done only for demonstration purposes.</p>
