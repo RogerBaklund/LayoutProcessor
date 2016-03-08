@@ -269,7 +269,9 @@ class LayoutProcessor_debug extends LayoutProcessor {
     return parent::find_scope($layout_name,$cmd);
   }  
   static function run_layout($layout_name,$param='') {
-    self::debug("run_layout($layout_name".(strlen($param)?",$param":'').")",self::DEBUG_LEVEL_BASICS);
+    $trace = debug_backtrace();
+    $trace_info = 'called from '.basename($trace[0]['file']).' line '.$trace[0]['line'];
+    self::debug("run_layout($layout_name".(strlen($param)?",$param":'').") $trace_info",self::DEBUG_LEVEL_BASICS);
     return parent::run_layout($layout_name,$param);
   }
   static function run_script($layout_script,$param='',$layout_name='[inline]') {
