@@ -309,7 +309,8 @@ class LayoutProcessor_debug extends LayoutProcessor {
     $res = parent::assignment($stmt);
     if(self::$debug_level < self::DEBUG_LEVEL_SCOPE_INSPECTION)
       return $res;
-    preg_match('/^[a-z_][a-z0-9_]*/i',$stmt,$m);
+    $var_pattern = parent::name_pattern('variable');
+    preg_match("/^$var_pattern/i",$stmt,$m);
     if($m && in_array($m[0],array_keys(static::$watch_list))
           && in_array($m[0],array_keys(static::$scope[count(static::$scope)-1]['vars']))) {
       $v = static::$scope[count(static::$scope)-1]['vars'][$m[0]];

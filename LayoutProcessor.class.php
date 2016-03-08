@@ -2,7 +2,7 @@
 
 require_once('Indentation.class.php');
 
-/**Layout processor
+/** Layout processor
 
 Processing templates called "layouts" using an extensibe script language called Prefix. 
  
@@ -24,8 +24,8 @@ Version history:
 - !scope static
 - $scope['separator']
 - !param blocks
-
- */
+  
+*/
  
 abstract class LayoutProcessor {
   const PARAM_PLACEHOLDER = '$$',
@@ -65,9 +65,10 @@ abstract class LayoutProcessor {
   static $custom_commands = array();
   static $custom_transform_types = array();
   static $name_patterns = array(
-    'layout'=>'/^[a-z_][^:]*$/i',
-    'command'=>'/^[a-z][a-z0-9_-]*$/i',
-    'transform'=>'/^[a-z][a-z0-9_-]*$/i');
+    'layout'    => '[a-z_][^:]*',
+    'command'   => '[a-z][a-z0-9_-]*',
+    'transform' => '[a-z][a-z0-9_-]*',
+    'variable'  => '[a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*');
   
   static function set_logger($logger) {
     if(!is_callable($logger)) return false;
@@ -109,7 +110,8 @@ abstract class LayoutProcessor {
   static function is_valid_name($nametype,$name) {
     if(!isset(static::$name_patterns[$nametype])) 
       return false;
-    return preg_match(static::$name_patterns[$nametype],$name);
+    $pattern = static::$name_patterns[$nametype];
+    return preg_match("/^$pattern$/i",$name);
   }  
   static function on_error($mode) {
     if(!is_numeric($mode)) return false;
@@ -153,7 +155,7 @@ abstract class LayoutProcessor {
   static function get($layout_name) {
     if(!isset(self::$layouts[$layout_name])) {
       $layout_item = static::load($layout_name);
-      if(!$layout_item ) 
+      if(!$layout_item) 
         return false; 
       if(!is_array($layout_item) || !isset($layout_item['content'])) {
         return false; # ! error in load()
@@ -320,7 +322,8 @@ abstract class LayoutProcessor {
     # $var = & ...  
     # $$varname = ...  Fails because $$ is replaced with $param in run_script()
     # ${$varname} = ...!!workaround: $dummy = ${$varname} = ...
-    preg_match('/^[a-z_][a-z0-9_]*/i',$stmt,$m);
+    $var_pattern = static::name_pattern('variable');
+    preg_match("/^$var_pattern/i",$stmt,$m);
     if(!$m) return static::error('bad assignment, identifier expected');
     $scope = & static::current_scope();
     if(!isset($scope['vars'][ $m[0] ]))
@@ -436,7 +439,8 @@ abstract class LayoutProcessor {
         @list($expr,$code) = self::split_on_colonLF($param);
         if(is_null($code))
           return static::error('Bad syntax for !loop, '.$ColonLF_Exptected);
-        if(!preg_match('/^(.+)\s+as\s+\$([a-z_][a-z0-9_]*)(\s*=>\s*\$([a-z_][a-z0-9_]*))?\s*$/i',$expr,$m))
+        $var_pattern = static::name_pattern('variable');
+        if(!preg_match('/^(.+)\s+as\s+\$('.$var_pattern.')(\s*=>\s*\$('.$var_pattern.'))?\s*$/i',$expr,$m))
           return static::error('Invalid syntax for !loop');
         $expr = trim($m[1]);
         if($expr && $expr[0] == '[' && substr($expr,-1) == ']')
