@@ -11,7 +11,7 @@ to the same block as the previous line. Blank lines are ignored.
 A set of prefix characters has builtin support, you can override these and/or add your own prefixes.
 
 The main building blocks of a script is the "layout", which is similar to procedures in other languages.
-You define layous and call them by their name, optionally with parameters. Layout names may contain spaces 
+You define layouts and call them by their name, optionally with parameters. Layout names may contain spaces 
 and other special characters, *except* colon, which is used to separate the parameter from the layout name.
 
 ## Builtin prefixes
