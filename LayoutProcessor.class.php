@@ -66,8 +66,8 @@ abstract class LayoutProcessor {
   static $custom_transform_types = array();
   static $name_patterns = array(
     'layout'    => '[a-z_][^:]*',
-    'command'   => '[a-z][a-z0-9_-]*',
-    'transform' => '[a-z][a-z0-9_-]*',
+    'command'   => '[a-z_][a-z0-9_-]*',
+    'transform' => '[a-z_][a-z0-9_-]*',
     'variable'  => '[a-z_\x7f-\xff][a-z0-9_\x7f-\xff]*');
   
   static function set_logger($logger) {
