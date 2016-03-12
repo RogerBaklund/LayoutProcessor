@@ -289,7 +289,7 @@ defined on a singe line, or it can be quite complex and large. There is no defin
 You can define layouts within other layouts, but they are all global, just like PHP functions.
 
     =greeting:"Hello!\n
-    =alert:!param string unhtml: $msg
+    =alert:!param string: $msg
       <div class="alert alert-danger">
       <span class="glyphicon glyphicon-exclamation-sign" style="font-size:150%;color:red"></span>
       " $msg
@@ -351,7 +351,8 @@ See also the `=alert` example above.
 ### Commands
 
 The `!` prefix is used for commands. Some commands are builtin, and you can add your own using 
-the `define_command($cmd,$callback)` method.
+the `define_command($cmd,$callback)` method. The name of the command must start with a letter 
+or an underscore and can contain letters, digits, underscores and dashes.
 
 #### `!php` Embedded PHP code
 
@@ -607,7 +608,7 @@ Some examples might clarify:
 - `layout` - Execute the parameter as a layout
 
 You can add custom transformations using the `add_transform($name,$callback)` method. Transformation 
-names must start with a letter or an underscore and can contain letters, digits and underscore.
+names must start with a letter or an underscore and can contain letters, digits, underscores and dashes.
 
 **Separators:**
 
