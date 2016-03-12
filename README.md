@@ -258,7 +258,7 @@ If you need the return values you must assign them to variables, like this:
     
 **NOTE:** Variable names follow standard PHP rules for variables, the name must start with a letter or 
 underscore and can contain letters, underscores and digits. In this context letters also include any 
-character in the range 127-255, meaning national special characters like æøåéüñ and so on.
+character in the range 127-255, meaning national special characters like æøåéüñ and so on are also accepted.
     
 ### String output
 
